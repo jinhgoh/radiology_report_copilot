@@ -3,6 +3,87 @@
 
   const keys = ['IVSd', 'LVDd', 'LVPWd', 'IVSs', 'LVDs', 'LVPWs'];
 
+  // Stable keys and explicit units keep measurements usable by future calculations.
+  const measurementFields = [
+    ['wall', 'LV wall thickness', 'mm', 'B mode', 'cat'],
+    ['laao', 'LA/Ao', '', 'B mode'],
+    ['mpaao', 'MPA/Ao', '', 'B mode', 'dog'],
+    ['rpad', 'RPAD index', '', 'B mode', 'dog'],
+    ['laDiameter', 'LA diameter max.', 'mm', 'B mode', 'cat'],
+    ['laFs', 'LA FS', '%', 'B mode', 'cat'],
+    ...keys.map(key => [key, key, 'cm', 'M mode']),
+    ['fs', 'FS', '%', 'M mode'],
+    ['jet', 'LA jet / LA ratio', '%', 'Doppler'],
+    ['mr', 'MR peak velocity', 'm/s', 'Doppler'],
+    ['tr', 'TR peak velocity', 'm/s', 'Doppler'],
+    ['e', 'E peak velocity', 'm/s', 'Doppler'],
+    ['eem', 'E/Em', '', 'Doppler'],
+    ['eivrt', 'E/IVRT', '', 'Doppler', 'dog'],
+    ['actet', 'PV flow AcT/ET', '', 'Doppler', 'dog'],
+    ['ea', 'E/A', '', 'Doppler', 'cat'],
+    ['ivrt', 'IVRT', 'ms', 'Doppler', 'cat'],
+    ['aortic', 'Aortic outflow velocity', 'm/s', 'Doppler', 'cat'],
+    ['appendage', 'LA appendage peak velocity', 'm/s', 'Doppler', 'cat'],
+  ].map(([key, label, unit, group, species]) => ({ key, label, unit, group, species, optional: key === 'actet' || key === 'appendage' }));
+
+  function optionalSlotAvailable(report, field) {
+    return field?.optional && !report.includes(field.label) && /^3\. Doppler 평가\r?$/m.test(report);
+  }
+
+  const numericSlot = '(?:[+-]?(?:\\d+(?:\\.\\d*)?|\\.\\d+)(?:[eE][+-]?\\d+)?)?';
+  const slotPatterns = {};
+
+  function measurementPattern(key, species) {
+    const cacheKey = `${species}:${key}`;
+    if (slotPatterns[cacheKey]) return slotPatterns[cacheKey];
+    // Derive labels from the original Korean template rather than duplicating them.
+    const marker = '__MEASUREMENT__';
+    const line = generateReport({ species, [key]: marker }).split('\n').find(line => line.includes(marker));
+    if (!line) return null;
+    let [prefix, suffix] = line.split(marker);
+    // A second measurement on the same line starts after its comma.
+    if (prefix.includes(',')) prefix = prefix.slice(prefix.lastIndexOf(',') + 1);
+    const escape = text => text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/[ \t]+/g, '[ \\t]*');
+    let end = suffix ? escape(suffix.split(',')[0]) : '[ \\t]*(?=\\r?$)';
+    if (keys.includes(key)) end = '[ \\t]*(?:cm[ \\t]*)?\\(';
+    if (key === 'e') end = '[ \\t]*m/s,';
+    if (key === 'ea') end = ',';
+    if (key === 'appendage') end += '[ \\t]*\\r?$';
+    return slotPatterns[cacheKey] = new RegExp(`(${prefix.startsWith(' ') && prefix.includes(':') && line.includes(',') ? ',' : '^'}${escape(prefix)})(${numericSlot})(?=${end})`, 'gm');
+  }
+
+  function readReportMeasurements(report, species) {
+    const values = {};
+    for (const field of measurementFields.filter(field => !field.species || field.species === species)) {
+      const pattern = measurementPattern(field.key, species);
+      pattern.lastIndex = 0;
+      const matches = [...report.matchAll(pattern)];
+      const raw = matches.length === 1 ? matches[0][2] : matches.length === 0 && optionalSlotAvailable(report, field) ? '' : null;
+      values[field.key] = { raw, value: raw === null || raw === '' ? null : Number(raw) };
+    }
+    return values;
+  }
+
+  function updateReportMeasurement(report, key, raw, species) {
+    if (!new RegExp(`^${numericSlot}$`).test(raw) || (raw !== '' && !Number.isFinite(Number(raw)))) return report;
+    const pattern = measurementPattern(key, species);
+    if (!pattern) return report;
+    pattern.lastIndex = 0;
+    const matches = [...report.matchAll(pattern)];
+    const field = measurementFields.find(field => field.key === key && (!field.species || field.species === species));
+    if (matches.length === 0 && raw !== '' && optionalSlotAvailable(report, field)) {
+      const line = generateReport({ species, [key]: raw }).split('\n').find(line => line.includes(field.label));
+      return insertReportFinding(report, '3. Doppler 평가', line).report;
+    }
+    if (matches.length !== 1) return report;
+    if (field?.optional && raw === '') {
+      const start = matches[0].index;
+      const end = report.indexOf('\n', start);
+      return report.slice(0, start) + (end < 0 ? '' : report.slice(end + 1));
+    }
+    return report.replace(pattern, (_, prefix) => prefix + raw);
+  }
+
   // Fixed feline ranges supplied by the user; preserve their original precision.
   const catReference = {
     ranges: {
@@ -66,7 +147,7 @@
         `- E peak velocity : ${getValue('e')} m/s, E/Em ratio : ${getValue('eem')}`,
         `- E/A : ${getValue('ea')}, IVRT : ${getValue('ivrt')} ms`,
         `- 수축기 대동맥 유출로 속도 : ${getValue('aortic')} m/s`,
-        `- LA appendage peak velocity : ${getValue('appendage')} m/s`,
+        ...(getValue('appendage') ? [`- LA appendage peak velocity : ${getValue('appendage')} m/s`] : []),
         '',
         '',
         'DX and DDX)',
@@ -103,7 +184,7 @@
       `- 삼첨판 역류 peak velocity : 약 ${getValue('tr')} m/s`,
       `- E peak velocity : ${getValue('e')} m/s, E/Em ratio : ${getValue('eem')}`,
       `- E/IVRT : ${getValue('eivrt')}`,
-      `- PV flow AcT/ET : ${getValue('actet')}`,
+      ...(getValue('actet') ? [`- PV flow AcT/ET : ${getValue('actet')}`] : []),
       '',
       '',
       'DX and DDX)',
@@ -151,6 +232,9 @@
     return { report: lines.join(newline), status: 'added' };
   }
   const api = {
+    measurementFields,
+    readReportMeasurements,
+    updateReportMeasurement,
     keys,
     catReference,
     selectReference,

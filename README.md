@@ -26,7 +26,7 @@ Open http://127.0.0.1:4173 in your browser. The server accepts connections only 
 ## Use the app
 
 1. Select the patient species (dog or cat) and enter the weight in kg. Cats accept any weight greater than zero.
-2. Edit findings, measurements, diagnoses, and the author directly in `Report preview`. Changing the weight updates template reference ranges while preserving your notes. Enter M-mode measurements in cm.
+2. Enter values in the B-mode, M-mode, and Doppler measurement inputs, or edit them directly in `Report preview`. Each species shows all measurements from its template, with units. LVIDDN is read-only and calculated automatically. Edit findings, diagnoses, and the author in the preview. Changing the weight updates template reference ranges while preserving your notes. Enter M-mode measurements in cm.
 3. Select a sentence from a `Findings` dropdown on the left to append it to the matching assessment section. You can add several sentences in sequence; identical sentences are not added twice to the same section. Edit or remove inserted sentences in the preview. If you change or delete a section heading, restore the original heading before inserting more findings into that section.
 4. Copy the report or save it as a UTF-8 TXT file.
 5. Select `New patient` to start another report. Refreshing the page or closing the window discards entered data.
@@ -70,3 +70,5 @@ The app uses HTML, CSS, and JavaScript without external dependencies.
 | `scripts/extract-reference.ps1` | Reference-range extraction from the source DOCX |
 
 `assets_for_reference/` contains read-only source materials and is listed in `.gitignore`. The app runs using the included `reference-data.js`, so the original materials are not required at runtime. Regenerating reference ranges requires the source DOCX. Do not edit, overwrite, rename, move, or delete original files. Save derived files outside this directory.
+
+Measurement inputs synchronize with template lines without replacing notes. Keep labels and units intact; a deleted, nonnumeric, or duplicated measurement line disables its input until restored. Measurements are available in memory by stable field key as numeric values (`null` for blank or unavailable values), alongside the original entered precision. No additional clinical calculations are applied.
