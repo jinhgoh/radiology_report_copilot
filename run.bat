@@ -1,14 +1,19 @@
 @echo off
 setlocal
-if not exist "%~dp0index.html" (
-    echo Could not find index.html. Keep run.bat in the app folder.
-    pause
-    exit /b 1
+if exist "%~dp0RadiologyReportCopilot.next.exe" (
+    move /y "%~dp0RadiologyReportCopilot.next.exe" "%~dp0RadiologyReportCopilot.exe" >nul 2>&1
+    if errorlevel 1 (
+        echo Save your report and close the running app, then open run.bat again to apply the update.
+        pause
+        exit /b 1
+    )
 )
-start "" "%~dp0index.html"
-if errorlevel 1 (
-    echo Could not open the app. Open index.html in your browser manually.
-    pause
-    exit /b 1
+if not exist "%~dp0RadiologyReportCopilot.exe" (
+    call "%~dp0build.bat"
+    if errorlevel 1 (
+        pause
+        exit /b 1
+    )
 )
+start "" "%~dp0RadiologyReportCopilot.exe"
 endlocal

@@ -2,6 +2,6 @@
   "name": "radiology_report_copilot",
   "version": "1.0.0",
   "private": true,
-  "description": "Radiology Report Copilot: offline Korean canine and feline echocardiography report editor",
+  "description": "Radiology Report Copilot: offline canine and feline echocardiography, abdominal ultrasound, DR, CT, MRI, and fluoroscopy report editor",
   "scripts": { "test": "node --test tests/*.test.js", "start": "node server.js" }
 }

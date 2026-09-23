@@ -1,6 +1,6 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
-const { generateReport, insertReportFinding, updateReportReferences } = require('../core');
+const { generateReport, insertReportFinding, removeReportFinding, updateReportReferences } = require('../core');
 const rows = require('../reference-data');
 
 const heading = '1. B mode 평가';
@@ -32,4 +32,22 @@ test('missing or edited headings leave free-form reports intact', () => {
   for (const draft of ['', 'My custom report', generateReport({}).replace(heading, 'Edited heading')]) {
     assert.deepEqual(insertReportFinding(draft, heading, sentence), { report: draft, status: 'missing-section' });
   }
+});
+
+test('unchecking a finding restores the draft and preserves other sections and line endings', () => {
+  for (const species of ['dog', 'cat']) {
+    for (const newline of ['\n', '\r\n']) {
+      const draft = generateReport({ species, dx: sentence, author: 'Author' }).replaceAll('\n', newline);
+      const added = insertReportFinding(draft, heading, sentence).report;
+      assert.deepEqual(removeReportFinding(added, heading, sentence), { report: draft, status: 'removed' });
+      assert.deepEqual(removeReportFinding(draft, heading, sentence), { report: draft, status: 'absent' });
+    }
+  }
+});
+
+test('unchecking preserves edited prose and leaves reports with missing headings intact', () => {
+  const edited = insertReportFinding(generateReport({}), heading, sentence + ' (edited)').report;
+  assert.deepEqual(removeReportFinding(edited, heading, sentence), { report: edited, status: 'absent' });
+  const custom = edited.replace(heading, 'Custom heading');
+  assert.deepEqual(removeReportFinding(custom, heading, sentence), { report: custom, status: 'missing-section' });
 });

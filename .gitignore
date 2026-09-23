@@ -1,1 +1,40 @@
+# Read-only reference material, kept locally.
 assets_for_reference/
+
+# Generated desktop builds and IDE intermediates.
+RadiologyReportCopilot.exe
+RadiologyReportCopilot.next.exe
+*.pdb
+bin/
+obj/
+.vs/
+*.suo
+*.user
+
+# Embedded browser profiles and caches.
+.webview2/
+*.WebView2/
+
+# Local dependencies, test output, and scratch files.
+node_modules/
+coverage/
+test-results/
+playwright-report/
+tmp/
+*.log
+*.tmp
+
+# Local configuration and report exports.
+.env
+.env.*
+!.env.example
+reports/
+exports/
+echocardiography_*.txt
+
+# OS metadata.
+Thumbs.db
+Desktop.ini
+.DS_Store
+
+# Keep the required WebView2 SDK DLLs and icon source assets tracked.

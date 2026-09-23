@@ -3,44 +3,83 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Echocardiography · Radiology Report Copilot</title>
+  <title>Radiology Report Copilot</title>
   <link rel="stylesheet" href="style.css">
+  <link rel="icon" href="RadiologyReportCopilot.ico" sizes="any">
   <script defer src="reference-data.js"></script>
   <script defer src="core.js"></script>
+  <script defer src="evaluations.js"></script>
   <script defer src="app.js"></script>
+  <script defer src="desktop-controls.js"></script>
 </head>
 <body>
   <main>
+    <div class="report-type-toggle species-toggle" role="group" aria-label="Report type">
+      <button type="button" data-report-choice="echo" aria-pressed="true">Echocardiography</button>
+      <button type="button" data-report-choice="abdominal" aria-pressed="false">Abdominal ultrasound</button>
+      <button type="button" data-report-choice="dr" aria-pressed="false">DR</button>
+      <button type="button" data-report-choice="ct" aria-pressed="false">CT</button>
+      <button type="button" data-report-choice="mri" aria-pressed="false">MRI</button>
+      <button type="button" data-report-choice="fluoroscopy" aria-pressed="false">Fluoroscopy</button>
+    </div>
     <div class="workspace">
       <form id="form" autocomplete="off">
         <section class="card"><div class="section-title"><h2>Patient information <span class="help"><button type="button" class="help-button" aria-label="Weight reference help" aria-describedby="weight-policy">i</button><span id="weight-policy" class="help-tooltip" role="tooltip">Weights between table entries use the nearest row. Ties use the lower weight. Values are not interpolated.</span></span></h2><button type="button" id="reset" class="text-button">New patient</button></div>
           <div class="patient-row"><div><input type="hidden" id="species" value="dog"><div class="species-toggle" role="group" aria-label="Species"><button type="button" data-species-choice="dog" aria-pressed="true">Dog</button><button type="button" data-species-choice="cat" aria-pressed="false">Cat</button></div></div><label>Weight (kg)<input id="weight" type="number" min="0.5" max="40" step="any" placeholder="e.g. 8.6" required></label></div>
           <p id="weight-status" class="notice" aria-live="polite">Enter a weight to display reference ranges. Supported range: 0.5–40 kg.</p>
         </section>
+        <section class="card" data-report-type="abdominal" hidden>
+          <h2>Abdominal ultrasound</h2>
+          <p class="hint">Edit the organ findings, diagnoses, and author directly in Report preview. The supplied Korean template starts each organ section with “특이소견 확인되지 않음”; review and replace these statements for the patient.</p>
+          <p class="hint">Weight is optional. Switching report type or species keeps a separate draft for each combination until New patient is selected or the app closes.</p>
+        </section>
+        <section class="card" id="imaging-guide" hidden>
+          <h2 id="imaging-title">Imaging report</h2>
+          <p class="hint">Edit the study region, clinical history, comparison, technique, findings, impressions, recommendations, and author directly in Report preview. Fill in the blank sections for the patient.</p>
+          <p class="hint">Weight is optional. Switching report type or species keeps a separate draft for each combination until New patient is selected or the app closes.</p>
+        </section>
+        <div data-report-type="echo">
         <section class="card">
-          <h2>Findings <span class="help"><button type="button" class="help-button" aria-label="Findings help" aria-describedby="findings-help">i</button><span id="findings-help" class="help-tooltip" role="tooltip">Choose a sentence to add it to the matching report section. Choose again to add more. Edit or remove added sentences in the preview.</span></span></h2>
-          <label for="b-mode-finding">1. B mode 평가</label>
-          <select id="b-mode-finding" data-finding-section="1. B mode 평가" lang="ko">
-            <option value="">소견 선택…</option>
-            <option>- 이첨판막의 비후 및 prolapse</option>
-            <option>- 유두근의 비후 동반됨</option>
-            <option data-species="cat">- 확장된 좌심방내 SEC (spontaneous echo contrast) 확인됨</option>
-          </select>
-          <div data-species="cat" hidden>
-            <label for="doppler-finding">3. Doppler 평가</label>
-            <select id="doppler-finding" data-finding-section="3. Doppler 평가" lang="ko">
-              <option value="">소견 선택…</option>
-              <option>- 수축기 와류가 좌심방과 대동맥 유출로에서 확인됨</option>
-            </select>
+          <h2>Findings <span class="help"><button type="button" class="help-button" aria-label="Findings help" aria-describedby="findings-help">i</button><span id="findings-help" class="help-tooltip" role="tooltip">Expand a section to see its sentences. Check a sentence to add it to the report; uncheck it to remove the matching sentence. You can also edit findings in the preview.</span></span></h2>
+          <div class="finding-actions" role="group" aria-label="Findings visibility">
+            <button type="button" id="expand-findings" class="secondary" aria-controls="b-mode-finding doppler-finding">Expand all</button>
+            <button type="button" id="collapse-findings" class="secondary" aria-controls="b-mode-finding doppler-finding">Collapse all</button>
           </div>
+          <details id="b-mode-finding" class="finding-group" data-finding-section="1. B mode 평가" open>
+            <summary lang="ko">1. B mode 평가</summary>
+            <label class="finding-option" lang="ko"><input type="checkbox" value="- 이첨판막의 비후 및 prolapse"><span>- 이첨판막의 비후 및 prolapse</span></label>
+            <label class="finding-option" lang="ko"><input type="checkbox" value="- 유두근의 비후 동반됨"><span>- 유두근의 비후 동반됨</span></label>
+            <label class="finding-option" lang="ko" data-species="cat" hidden><input type="checkbox" value="- 확장된 좌심방내 SEC (spontaneous echo contrast) 확인됨"><span>- 확장된 좌심방내 SEC (spontaneous echo contrast) 확인됨</span></label>
+          </details>
+          <details id="doppler-finding" class="finding-group" data-finding-section="3. Doppler 평가" data-species="cat" hidden open>
+            <summary lang="ko">3. Doppler 평가</summary>
+            <label class="finding-option" lang="ko"><input type="checkbox" value="- 수축기 와류가 좌심방과 대동맥 유출로에서 확인됨"><span>- 수축기 와류가 좌심방과 대동맥 유출로에서 확인됨</span></label>
+          </details>
           <p id="finding-feedback" class="hint" role="status"></p>
         </section>
         <h2 class="measurement-title">Measurements <span class="help"><button type="button" class="help-button" aria-label="Measurements help" aria-describedby="measurements-help">i</button><span id="measurements-help" class="help-tooltip" role="tooltip">Enter measurements below or edit them in the preview. Keep template labels and units to synchronize values. Blank fields are optional.</span></span></h2>
         <div id="measurements"></div>
+        <section class="card evaluation-panel" aria-labelledby="evaluation-title">
+          <h2 id="evaluation-title">Clinical evaluation</h2>
+          <p class="hint">Updates from entered measurements. Expand a result to see criteria, missing inputs, and source limitations. Findings and diagnoses in the report remain under your control.</p>
+          <div id="evaluations"></div>
+        </section>
+        </div>
+        <div class="app-options" role="group" aria-label="App options">
+          <label id="always-on-top-option" hidden><input id="always-on-top" type="checkbox">Always on top</label>
+          <button id="about" type="button" class="text-button" aria-haspopup="dialog" aria-controls="about-dialog">About</button>
+        </div>
       </form>
-      <aside><section class="card preview"><div class="section-title"><div><p class="eyebrow">REPORT</p><h2>Report preview <span class="help"><button type="button" class="help-button" aria-label="Report preview help" aria-describedby="preview-help">i</button><span id="preview-help" class="help-tooltip" role="tooltip">Use the measurement inputs or edit values directly below. Edit findings, diagnoses, and author in the preview. Weight changes update reference ranges in the template without replacing your notes. Enter M-mode measurements in cm.</span></span></h2></div><span id="reference-badge" class="badge">No weight entered</span></div><textarea id="report" lang="ko" aria-label="Editable echocardiography report" spellcheck="false"></textarea><div class="actions"><button id="copy" type="button" disabled>Copy report</button><button id="download" type="button" class="secondary" disabled>Save TXT</button></div><p id="feedback" role="status"></p><details><summary>References and methodology</summary><p>Cats use fixed reference ranges from the supplied template at all weights. Dogs use the 0.5–40 kg table in Canine_Mmode_Refer.docx. Malformed or negative ranges are marked “Check source”.</p><p id="source-issues"></p><p data-species="dog">LVIDDN = LVDd / weight<sup>0.294</sup>. Calculated from the LVDd line when you leave the editor or change weight. Keep the LVDd and LVIDDN labels to use this automation.</p><p>Enter clinical findings and diagnoses manually. Entries are not sent to a server or saved in browser storage.</p></details></section></aside>
+      <aside><section class="card preview"><div class="section-title"><div><p class="eyebrow">REPORT</p><h2>Report preview <span class="help"><button type="button" class="help-button" aria-label="Report preview help" aria-describedby="preview-help">i</button><span id="preview-help" class="help-tooltip" role="tooltip">Use the measurement inputs or edit values directly below. Edit findings, diagnoses, and author in the preview. Weight changes update reference ranges in the template without replacing your notes. Choose mm (default) or cm for M-mode measurement inputs. Switching units converts M-mode inputs, report measurements, and reference ranges together; FS remains in %. LVIDDN is calculated using the equivalent value in cm.</span></span></h2></div><span id="reference-badge" class="badge">No weight entered</span></div><textarea id="report" lang="ko" aria-label="Editable echocardiography report" spellcheck="false"></textarea><div class="actions"><button id="copy" type="button" disabled>Copy report</button><button id="download" type="button" class="secondary" disabled>Save TXT</button></div><p id="feedback" role="status"></p><details data-report-type="echo"><summary>References and methodology</summary><p>Cats use fixed reference ranges from the supplied template at all weights. Dogs use the 0.5–40 kg table in Canine_Mmode_Refer.docx. Malformed or negative ranges are marked “Check source”.</p><p id="source-issues"></p><p data-species="dog">LVIDDN = LVDd / weight<sup>0.294</sup>. Calculated from the LVDd line when you leave the editor or change weight. Keep the LVDd and LVIDDN labels to use this automation.</p><p>Enter clinical findings and diagnoses manually. Entries are not sent to a server or saved in browser storage.</p></details></section></aside>
     </div>
   </main>
-  <footer>Radiology Report Copilot · Weight-based reference ranges and report editor</footer>
+  <footer>Radiology Report Copilot · Echocardiography · Abdominal ultrasound · DR · CT · MRI · Fluoroscopy</footer>
+  <dialog id="about-dialog" aria-labelledby="about-title">
+    <h2 id="about-title">Radiology Report Copilot</h2>
+    <p>Created by Jinhyong Goh.</p>
+    <p>Copyright © 2026 Jinhyong Goh. All rights reserved.</p>
+    <p>Commercial use of this program is prohibited without prior written consent from Jinhyong Goh.</p>
+    <form method="dialog"><button type="submit" autofocus>Close</button></form>
+  </dialog>
 </body>
 </html>
