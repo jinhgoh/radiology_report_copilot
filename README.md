@@ -1,11 +1,10 @@
 # Radiology Report Copilot
 
-Repository directory and package name: `radiology_report_copilot`.
-
 ![HTML5](https://img.shields.io/badge/HTML5-E34F26?logo=html5&logoColor=white)
 ![CSS3](https://img.shields.io/badge/CSS3-1572B6)
 ![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?logo=javascript&logoColor=black)
 ![Node.js](https://img.shields.io/badge/Node.js-339933?logo=nodedotjs&logoColor=white)
+<img width="1391" height="1022" alt="image" src="https://github.com/user-attachments/assets/800b7e52-9f3e-4f93-8d1e-d3b7e280ca11" />
 
 A local web app for writing canine and feline echocardiography, abdominal ultrasound, DR (digital radiography), CT, MRI, and fluoroscopy reports. In echocardiography mode, dogs use weight-based M-mode reference ranges; cats use fixed reference ranges at all weights.
 
