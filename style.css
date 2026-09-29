@@ -51,6 +51,8 @@ input:disabled{background:#f3f6f5;color:#758680}
 .evaluation-result dd[data-state="severe"] strong{color:#bd2525;font-weight:700}
 .evaluation-result dd[data-state="moderate"] strong,.evaluation-result dd[data-state="unresolved"] strong{color:#90602c}
 #report{font-size:14px;line-height:1.5;padding:16px}
+/* Fit the full default echocardiography template, including report separators. */
+#report[data-report-mode="echo"]{min-height:900px}
 @media(max-width:950px){.workspace{grid-template-columns:1fr}}
 
 .help{position:relative;display:inline-flex;vertical-align:middle;font-weight:400;letter-spacing:normal}

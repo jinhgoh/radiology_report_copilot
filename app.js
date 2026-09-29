@@ -242,6 +242,7 @@ function update() {
   const abdominal = currentReportType === 'abdominal';
   const echo = currentReportType === 'echo';
   const modality = reportTypes[currentReportType];
+  $('report').dataset.reportMode = currentReportType;
   document.querySelectorAll('[data-report-choice]').forEach(button => {
     button.setAttribute('aria-pressed', String(button.dataset.reportChoice === currentReportType));
   });

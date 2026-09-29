@@ -2,6 +2,7 @@
   'use strict';
 
   const keys = ['IVSd', 'LVDd', 'LVPWd', 'IVSs', 'LVDs', 'LVPWs'];
+  const reportSeparator = '-------------------------------------------------------------';
 
   // Stable keys and explicit units keep measurements usable by future calculations.
   const measurementFields = [
@@ -160,6 +161,7 @@
     const modality = reportTypes[type];
     if (!modality?.technique) throw new Error(`No imaging template for report type: ${type}`);
     return [
+      reportSeparator,
       modality.title, '',
       'Study region: ',
       'Clinical history / indication: ',
@@ -170,11 +172,13 @@
       'Impression / differential diagnoses', '- ', '',
       'Recommendations', '- ', '',
       'by GJH',
+      reportSeparator,
     ].join('\n');
   }
 
   function generateAbdominalReport() {
     return [
+      reportSeparator,
       '복부 초음파',
       '간담도계',
       '- 특이소견 확인되지 않음',
@@ -193,6 +197,7 @@
       '- ',
       '',
       'by GJH',
+      reportSeparator,
     ].join('\n');
   }
 
@@ -202,6 +207,7 @@
 
     if (values.species === 'cat') {
       return [
+        reportSeparator,
         '심장 초음파',
         '1. B mode 평가',
         `- 이완기말 좌심실벽 두께 : ${getValue('wall')} mm`,
@@ -227,10 +233,12 @@
         ...diagnosisLines,
         '',
         `by ${getValue('author')}`,
+        reportSeparator,
       ].join('\n');
     }
 
     const lines = [
+      reportSeparator,
       '심장 초음파',
       '1. B mode 평가',
       `- LA/Ao ratio : ${getValue('laao')}`,
@@ -264,6 +272,7 @@
       ...diagnosisLines,
       '',
       `by ${getValue('author')}`,
+      reportSeparator,
     );
     return lines.join('\n');
   }

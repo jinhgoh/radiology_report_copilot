@@ -1,11 +1,5 @@
 # Radiology Report Copilot
 
-![HTML5](https://img.shields.io/badge/HTML5-E34F26?logo=html5&logoColor=white)
-![CSS3](https://img.shields.io/badge/CSS3-1572B6)
-![JavaScript](https://img.shields.io/badge/JavaScript-F7DF1E?logo=javascript&logoColor=black)
-![Node.js](https://img.shields.io/badge/Node.js-339933?logo=nodedotjs&logoColor=white)
-<img width="1391" height="1022" alt="image" src="https://github.com/user-attachments/assets/800b7e52-9f3e-4f93-8d1e-d3b7e280ca11" />
-
 A local web app for writing canine and feline echocardiography, abdominal ultrasound, DR (digital radiography), CT, MRI, and fluoroscopy reports. In echocardiography mode, dogs use weight-based M-mode reference ranges; cats use fixed reference ranges at all weights.
 
 Choose **DR**, **CT**, **MRI**, or **Fluoroscopy** at the top to start an editable English template. Each includes study region, clinical history, comparison, modality-specific technique prompts, findings, impressions / differential diagnoses, recommendations, and author. These sections start blank for manual entry. Weight is optional; cardiac controls and calculations apply only to echocardiography. Copy report and Save TXT export the active draft, with filenames such as `ct_dog.txt` or `mri_cat_4kg.txt`. Each report type and species keeps its own in-memory draft; New patient clears every draft. Reopen the app to load updated report modes.
@@ -18,7 +12,7 @@ English is the default language for project documentation, development communica
 
 ## Run the app
 
-On Windows, double-click `run.bat` or `RadiologyReportCopilot.exe`. The app opens in its own desktop window with an embedded Microsoft Edge WebView2 browser, like LLM Choir. There are no browser tabs or address bar. `Save TXT` opens a Windows save dialog.
+On Windows, double-click `run.bat` or `RadiologyReportCopilot.exe`. The app opens in its own desktop window with an embedded Microsoft Edge WebView2 browser. There are no browser tabs or address bar. `Save TXT` opens a Windows save dialog.
 
 Use the `Always on top` checkbox below the measurements at the bottom of the left column to keep the app over other windows. Uncheck it to return to normal window behavior. It starts unchecked each time you open the app and is available in the desktop app only. The executable and window use a teal radiology icon with a stylized ribcage and heart.
 
@@ -64,7 +58,7 @@ Entered data is neither sent to a server nor saved in browser storage. All origi
 
 ## Development and validation
 
-The report editor uses HTML, CSS, and JavaScript without external JavaScript dependencies. The Windows desktop host uses C# WinForms and the WebView2 SDK DLLs, copied from the existing LLM Choir app (SDK version 1.0.4022.49). The desktop app does not depend on the LLM Choir directory at runtime.
+The report editor uses HTML, CSS, and JavaScript without external JavaScript dependencies. The Windows desktop host uses C# WinForms and the Microsoft Edge WebView2 SDK (version 1.0.4022.49).
 
 - `build.bat`: compiles the Windows x64 desktop executable. If the existing executable is in use, the build is staged as `RadiologyReportCopilot.next.exe`. Save your report, close all app windows, then use `run.bat` to apply it. HTML/CSS/JavaScript changes only require reopening the app.
 - `powershell -NoProfile -ExecutionPolicy Bypass -File scripts/build-icon.ps1`: packages `assets/app-icon.png` into the multi-resolution Windows icon. Rebuild the executable after changing the icon.
