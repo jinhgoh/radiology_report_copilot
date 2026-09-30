@@ -43,9 +43,10 @@ test('all six report modes preserve species drafts, isolate cardiac controls, ex
   });
   const types = buttons('reportChoice', ['echo', 'abdominal', 'dr', 'ct', 'mri', 'fluoroscopy']);
   const species = buttons('speciesChoice', ['dog', 'cat']);
+  const regions = buttons('drRegion', ['흉부', '복부', '전지', '후지', '두부', '기타']);
   const sections = buttons('reportType', ['echo', 'abdominal']);
   Object.assign(document, { body: element(), getElementById: get, createElement: element,
-    querySelectorAll: selector => ({ '[data-report-choice]': types, '[data-species-choice]': species, '[data-report-type]': sections }[selector] || []) });
+    querySelectorAll: selector => ({ '[data-dr-region]': regions, '[data-report-choice]': types, '[data-species-choice]': species, '[data-report-type]': sections }[selector] || []) });
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../app.js'), 'utf8'), {
     document, EchoCore, EchoEvaluations: require('../evaluations'), REFERENCE_DATA: require('../reference-data'), Blob,
     navigator: { clipboard: { async writeText(value) { copied = value; } } },
@@ -116,7 +117,7 @@ test('all six report modes preserve species drafts, isolate cardiac controls, ex
     button.listeners.click();
     assert.equal(editor.value, EchoCore.generateImagingReport(type));
     assert.equal(button.attributes['aria-pressed'], 'true');
-    assert.equal(editor.attributes.lang, 'en');
+    assert.equal(editor.attributes.lang, type === 'dr' ? 'ko' : 'en');
     assert.equal(sections[0].hidden, true);
     assert.equal(sections[1].hidden, true);
     assert.equal(get('imaging-guide').hidden, false);
@@ -139,7 +140,13 @@ test('all six report modes preserve species drafts, isolate cardiac controls, ex
     get('download').listeners.click();
     assert.equal(downloaded, `${type}_dog.txt`);
     species[1].listeners.click();
-    assert.equal(editor.value, EchoCore.generateImagingReport(type));
+    assert.equal(editor.value, EchoCore.generateImagingReport(type, 'cat'));
+    if (type === 'dr') {
+      assert.match(editor.value, /- VHS: v, VHW: v/);
+      assert.doesNotMatch(editor.value, /VLAS/);
+      assert.match(report, /- VHS: v, VLAS: v/);
+      assert.doesNotMatch(report, /VHW/);
+    }
     edit(editor.value + `\n${type} cat notes`);
     imagingDrafts[type] = { dog: report, cat: editor.value };
     species[0].listeners.click();
@@ -152,12 +159,59 @@ test('all six report modes preserve species drafts, isolate cardiac controls, ex
     assert.equal(editor.value, imagingDrafts[button.dataset.reportChoice].cat);
     species[0].listeners.click();
   }
+  types[2].listeners.click();
+  assert.deepEqual(regions.map(input => input.checked), [true, false, false, false, false, false]);
+  for (const input of regions.slice(1)) {
+    input.checked = true;
+    input.listeners.change();
+    assert.ok(editor.value.includes(`\n${input.dataset.drRegion}\n`));
+  }
+  edit(editor.value.replace('복부\n', '복부\nAbdominal notes\n'));
+  const allRegions = editor.value;
+  regions[1].checked = false;
+  regions[1].listeners.change();
+  assert.doesNotMatch(editor.value, /복부|Abdominal notes/);
+  assert.match(editor.value, /dr dog notes/);
+  regions[1].checked = true;
+  regions[1].listeners.change();
+  assert.equal(editor.value, allRegions);
+  species[1].listeners.click();
+  assert.deepEqual(regions.map(input => input.checked), [true, false, false, false, false, false]);
+  species[0].listeners.click();
+  assert.equal(editor.value, allRegions);
+  assert.ok(regions.every(input => input.checked));
+  get('dr-uncheck-all').listeners.click();
+  assert.ok(regions.every(input => !input.checked));
+  assert.doesNotMatch(editor.value, /^(흉부|복부|전지|후지|두부|기타)$/m);
+  assert.match(editor.value, /DX and DDX\)/);
+  assert.match(editor.value, /dr dog notes/);
+  get('dr-check-all').listeners.click();
+  assert.ok(regions.every(input => input.checked));
+  assert.equal(editor.value, allRegions, 'Check all restores edited sections');
+  get('dr-check-all').listeners.click();
+  assert.equal(editor.value, allRegions, 'Repeated Check all does not duplicate sections');
   get('reset').listeners.click();
+  assert.deepEqual(regions.map(input => input.checked), [true, false, false, false, false, false]);
   for (const button of types.slice(2)) {
     button.listeners.click();
     for (const speciesButton of species) {
       speciesButton.listeners.click();
-      assert.equal(editor.value, EchoCore.generateImagingReport(button.dataset.reportChoice));
+      assert.equal(editor.value, EchoCore.generateImagingReport(button.dataset.reportChoice, speciesButton.dataset.speciesChoice));
+    }
+  }
+  types[2].listeners.click();
+  for (const speciesButton of species) {
+    speciesButton.listeners.click();
+    const measurement = speciesButton.dataset.speciesChoice === 'cat' ? '- VHS: v, VHW: v' : '- VHS: v, VLAS: v';
+    const wrap = sections => `${'-'.repeat(61)}\n방사선 검사\n${sections}DX and DDX)\n- \n\nby GJH\n${'-'.repeat(61)}`;
+    get('dr-check-all').listeners.click();
+    assert.equal(editor.value, wrap(`흉부\n${measurement}\n- \n\n복부\n- \n\n전지\n- \n\n후지\n- \n\n두부\n- \n\n기타\n- \n\n`));
+    for (const input of regions) {
+      get('dr-uncheck-all').listeners.click();
+      input.checked = true;
+      input.listeners.change();
+      const region = input.dataset.drRegion;
+      assert.equal(editor.value, wrap(`${region}\n${region === '흉부' ? measurement + '\n' : ''}- \n\n`));
     }
   }
   species[0].listeners.click();

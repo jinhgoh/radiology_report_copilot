@@ -151,13 +151,24 @@
   const reportTypes = {
     echo: { label: 'Echocardiography', filename: 'echocardiography', lang: 'ko' },
     abdominal: { label: 'Abdominal ultrasound', filename: 'abdominal_ultrasound', lang: 'ko' },
-    dr: { label: 'DR', filename: 'dr', lang: 'en', title: 'DR (Digital radiography)', technique: ['Projections / positioning', 'Image quality / limitations'] },
+    dr: { label: 'DR', filename: 'dr', lang: 'ko', title: 'DR (Digital radiography)' },
     ct: { label: 'CT', filename: 'ct', lang: 'en', title: 'CT (Computed tomography)', technique: ['Acquisition / reconstructions', 'Contrast / phases', 'Image quality / limitations'] },
     mri: { label: 'MRI', filename: 'mri', lang: 'en', title: 'MRI (Magnetic resonance imaging)', technique: ['Sequences / planes', 'Contrast', 'Image quality / limitations'] },
     fluoroscopy: { label: 'Fluoroscopy', filename: 'fluoroscopy', lang: 'en', title: 'Fluoroscopy', technique: ['Procedure / positioning', 'Contrast', 'Dynamic assessment / maneuvers', 'Image quality / limitations'] },
   };
 
-  function generateImagingReport(type) {
+  function generateImagingReport(type, species = 'dog') {
+    if (type === 'dr') {
+      return [
+        reportSeparator,
+        '방사선 검사',
+        '흉부',
+        species === 'cat' ? '- VHS: v, VHW: v' : '- VHS: v, VLAS: v', '- ', '',
+        'DX and DDX)', '- ', '',
+        'by GJH',
+        reportSeparator,
+      ].join('\n');
+    }
     const modality = reportTypes[type];
     if (!modality?.technique) throw new Error(`No imaging template for report type: ${type}`);
     return [

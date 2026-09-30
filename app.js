@@ -41,6 +41,59 @@ let currentSpecies = 'dog';
 let currentReportType = 'echo';
 const echoPreviewHelp = $('preview-help').textContent;
 const drafts = {};
+const drRegions = ['흉부', '복부', '전지', '후지', '두부', '기타'];
+const hiddenDrSections = {};
+
+function drHeadings() {
+  return [...$('report').value.matchAll(/^(흉부|복부|전지|후지|두부|기타|DX and DDX\)|-{61})\r?$/gm)];
+}
+
+function syncDrRegions() {
+  if (currentReportType !== 'dr') return;
+  const headings = drHeadings();
+  document.querySelectorAll('[data-dr-region]').forEach(input => {
+    input.checked = headings.some(match => match[1] === input.dataset.drRegion);
+  });
+}
+
+function changeDrRegion(input) {
+    if (currentReportType !== 'dr') return;
+    const editor = $('report');
+    const region = input.dataset.drRegion;
+    const headings = drHeadings();
+    const index = headings.findIndex(match => match[1] === region);
+    const saved = hiddenDrSections[currentSpecies] ??= {};
+    if (!input.checked && index >= 0) {
+      const start = headings[index].index;
+      const end = headings[index + 1]?.index ?? editor.value.length;
+      saved[region] = editor.value.slice(start, end);
+      editor.value = editor.value.slice(0, start) + editor.value.slice(end);
+    } else if (input.checked && index < 0) {
+      const next = headings.find(match => drRegions.indexOf(match[1]) > drRegions.indexOf(region) || match[1] === 'DX and DDX)');
+      if (next) {
+        const measurements = currentSpecies === 'cat' ? '- VHS: v, VHW: v' : '- VHS: v, VLAS: v';
+        const section = saved[region] ?? `${region}\n${region === '흉부' ? measurements + '\n' : ''}- \n\n`;
+        editor.value = editor.value.slice(0, next.index) + section + editor.value.slice(next.index);
+      }
+    }
+    syncDrRegions();
+    updateExport();
+}
+
+document.querySelectorAll('[data-dr-region]').forEach(input => {
+  input.addEventListener('change', () => changeDrRegion(input));
+});
+
+for (const [id, checked] of [['dr-check-all', true], ['dr-uncheck-all', false]]) {
+  $(id).addEventListener('click', () => {
+    if (currentReportType !== 'dr') return;
+    document.querySelectorAll('[data-dr-region]').forEach(input => {
+      if (input.checked === checked) return;
+      input.checked = checked;
+      changeDrRegion(input);
+    });
+  });
+}
 let measurements = {};
 let mModeUnit = 'mm';
 
@@ -239,6 +292,7 @@ function updateExport() {
 }
 
 function update() {
+  syncDrRegions();
   const abdominal = currentReportType === 'abdominal';
   const echo = currentReportType === 'echo';
   const modality = reportTypes[currentReportType];
@@ -251,10 +305,14 @@ function update() {
   });
   $('imaging-guide').hidden = echo || abdominal;
   $('imaging-title').textContent = modality.title || modality.label;
+  $('imaging-instructions').textContent = currentReportType === 'dr'
+    ? 'Select study regions in the left panel and edit findings, diagnoses, and author directly in Report preview. Dogs use VHS and VLAS; cats use VHS and VHW.'
+    : 'Edit the study region, clinical history, comparison, technique, findings, impressions, recommendations, and author directly in Report preview. Fill in the blank sections for the patient.';
   $('report').setAttribute('aria-label', `Editable ${modality.label} report`);
   $('report').setAttribute('lang', modality.lang);
   $('preview-help').textContent = abdominal
     ? 'Edit the supplied Korean abdominal ultrasound template directly. Review each organ finding, then edit diagnoses and author. Copy report or Save TXT exports the current draft.'
+    : currentReportType === 'dr' ? `${$('imaging-instructions').textContent} Copy report or Save TXT exports the current draft.`
     : echo ? echoPreviewHelp
       : `Edit the ${modality.label} template directly. Enter the study region, history, technique, findings, impressions, recommendations, and author. Copy report or Save TXT exports the current draft.`;
   const cat = currentSpecies === 'cat';
@@ -317,7 +375,7 @@ function update() {
 
 function newReport() {
   if (currentReportType === 'abdominal') return generateAbdominalReport();
-  if (currentReportType !== 'echo') return generateImagingReport(currentReportType);
+  if (currentReportType !== 'echo') return generateImagingReport(currentReportType, currentSpecies);
   return generateReport({ species: currentSpecies, author: 'GJH' }, null);
 }
 
@@ -345,6 +403,7 @@ $('form').addEventListener('input', event => {
 $('form').addEventListener('submit', event => event.preventDefault());
 
 $('report').addEventListener('input', () => {
+  syncDrRegions();
   syncMeasurementInputs();
   syncFindingCheckboxes();
   updateExport();
@@ -431,6 +490,7 @@ $('reset').addEventListener('click', () => {
   $('finding-feedback').textContent = '';
   $('weight').value = '';
   for (const key of Object.keys(drafts)) delete drafts[key];
+  for (const key of Object.keys(hiddenDrSections)) delete hiddenDrSections[key];
   $('report').value = newReport();
   update();
   $('weight').focus();
