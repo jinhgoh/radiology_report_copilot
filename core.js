@@ -2,7 +2,7 @@
   'use strict';
 
   const keys = ['IVSd', 'LVDd', 'LVPWd', 'IVSs', 'LVDs', 'LVPWs'];
-  const reportSeparator = '-------------------------------------------------------------';
+  const reportSeparator = '----------------------------------------------------------';
 
   // Stable keys and explicit units keep measurements usable by future calculations.
   const measurementFields = [

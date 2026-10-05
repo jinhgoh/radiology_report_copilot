@@ -1,4 +1,4 @@
-﻿const { test } = require('node:test');
+const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { measurementFields, generateReport, readReportMeasurements, updateReportMeasurement, updateReportLviddn } = require('../core');
 
@@ -14,7 +14,7 @@ for (const species of ['dog', 'cat']) {
       assert.equal(updateReportMeasurement(next, field.key, '', species), report, field.key);
       report = next;
     }
-    assert.ok(report.endsWith('DX and DDX)\n- Preserve notes\n\nby Author\n-------------------------------------------------------------'));
+    assert.ok(report.endsWith('DX and DDX)\n- Preserve notes\n\nby Author\n----------------------------------------------------------'));
     for (const field of fields) assert.equal(readReportMeasurements(report, species)[field.key].value, 1.25, field.key);
   });
 }

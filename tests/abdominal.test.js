@@ -7,7 +7,7 @@ const EchoCore = require('../core');
 
 test('abdominal report reproduces the supplied template exactly', () => {
   const expected = '복부 초음파\n간담도계\n- 특이소견 확인되지 않음\n소화기\n- 특이소견 확인되지 않음\n비뇨기\n- 특이소견 확인되지 않음\n비장, 내분비 림프절 \n- 특이소견 확인되지 않음\n생식기\n- 특이소견 확인되지 않음\n기타\n- 특이소견 확인되지 않음\n\nDX and DDX)\n- \n\nby GJH';
-  assert.equal(EchoCore.generateAbdominalReport(), `-------------------------------------------------------------\n${expected}\n-------------------------------------------------------------`);
+  assert.equal(EchoCore.generateAbdominalReport(), `----------------------------------------------------------\n${expected}\n----------------------------------------------------------`);
 });
 
 test('all six report modes preserve species drafts, isolate cardiac controls, export and reset', async () => {
