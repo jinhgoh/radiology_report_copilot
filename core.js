@@ -394,10 +394,33 @@
     return { report: lines.join(newline), status: 'removed' };
   }
 
+  // The supplied E peak reference has no species restriction. Color by the requested RR;
+  // preserve the separate clinical thresholds as notes without inferring severity grades.
+  const ePeakReference = {
+    bands: [{ severity: 'normal', min: 0, minInclusive: false, max: 1.2, maxInclusive: false, text: '< 1.2 m/s (RR)' }],
+    note: `RR:0.52-0.82m/s |
+RR<1.2m/s<LAP증가(윤심초,vf)
+>1.25m/s: 역류의 양이 유의적으로 多
+>1.25m/s: LVFP증가
+>1.3m/s: (위험)곧 CHF가 발생할 수 있음
+>1.5m/s: 급사 가능(예후안좋음)
+
+심장병있으면 E파가 커짐
+정상: E peak <1.25m/s  // 1< E/A <2
+1.3m/s 이상이면 위험. (Yoon)1.3이상이면 LAP가 높아져서 폐수종 가능성이 상당히 높아진다(Yoon) E peak 위험수치가 1.3m/s다 (Yoon). E peak이 1.2거나 낮아도  CPE 유발도 가능(다른요소에 의해서)( Yoon)
+
+Range colors use the requested RR <1.2 m/s. The original supplied notes above are retained for reference, separately from MMVD severity grades.`,
+  };
+
+  const trReference = {
+    bands: [{ severity: 'normal', min: 0, minInclusive: false, max: 2.6, maxInclusive: false, text: '< 2.6 m/s (RR)' }],
+    note: 'RR<2.6m/s<Abnormal but meaningless<3.5m/s<의미있는 TR\nRange colors use RR <2.6 m/s. The supplied clinical descriptions are preserved separately from PH probability criteria.',
+  };
+
   // Populate only with supplied clinical ranges, separately for each species.
   // Each band has severity, text, and optional min/max and minInclusive/maxInclusive.
   const measurementReferences = {
-    dog: { rpad: {
+    dog: { e: ePeakReference, tr: trReference, rpad: {
       requireUniqueBand: true,
       bands: [
         { severity: 'normal', min: 30, text: '≥ 30%' },
@@ -420,7 +443,7 @@
       ],
       note: '(1.9초과시 심부전의심)',
     } },
-    cat: { laFs: {
+    cat: { e: ePeakReference, tr: trReference, laFs: {
       bands: [
         { severity: 'low', min: 0, minInclusive: false, max: 15.9, text: '≤ 15.9%' },
         { severity: 'ambiguous', min: 15.9, minInclusive: false, max: 29.0, text: '> 15.9–29.0%' },

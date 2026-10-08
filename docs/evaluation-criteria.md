@@ -35,7 +35,11 @@ RJarea mild/severe entries lack inequality signs, so no grade is inferred. IVRT 
 
 LA pressure indicators remain separate: E >1.25 m/s, E/E′ >12, IVRT <45 ms, E/IVRT >2.5. The missing canine IVRT input is identified.
 
+The E peak measurement tooltip preserves the user-supplied Korean reference notes verbatim. With no species restriction supplied, it appears for both dogs and cats. Measurement colors use the user's revised RR of <1.2 m/s: positive values below 1.2 are normal, and values at or above 1.2 are high. The original 0.52–0.82 m/s interval, “normal <1.25 m/s” statement, and LAP, LVFP, CHF, and prognosis thresholds remain notes; they do not define new severity grades or replace the MMVD criteria above. The source's differing `>1.3` and `1.3 이상` wording is preserved.
+
 ## PH probability
+
+The TR peak velocity measurement reference applies to both dogs and cats because no species restriction was supplied. Positive values <2.6 m/s are normal; values ≥2.6 m/s are high. The tooltip preserves `RR<2.6m/s<Abnormal but meaningless<3.5m/s<의미있는 TR` verbatim. These clinical descriptions do not assign severity grades or change PH probability calculations.
 
 Dogs only. The source's PH section supplies probability, not a pressure severity grade. TR is interpreted against the count of affected anatomical sites:
 

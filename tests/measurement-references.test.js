@@ -2,6 +2,50 @@ const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { classifyMeasurement, measurementRangeStatus, measurementReferences, measurementReferenceText } = require('../core');
 
+test('TR uses the supplied strict RR boundary and preserves clinical descriptions', () => {
+  for (const species of ['dog', 'cat']) {
+    const reference = measurementReferences[species].tr;
+    for (const [value, expected] of [[0.1, 'normal'], [2.599, 'normal'],
+      [2.6, 'high'], [2.601, 'high'], [3.499, 'high'], [3.5, 'high'], [3.501, 'high']]) {
+      assert.equal(measurementRangeStatus(value, reference), expected);
+      assert.equal(classifyMeasurement(value, reference), expected === 'normal' ? 'normal' : null);
+    }
+    for (const value of [null, undefined, '', NaN, Infinity, 0, -1]) {
+      assert.equal(measurementRangeStatus(value, reference), null);
+    }
+    assert.ok(measurementReferenceText(reference, species)
+      .includes('RR<2.6m/s<Abnormal but meaningless<3.5m/s<의미있는 TR'));
+  }
+});
+
+test('E peak uses the requested strict upper RR boundary independently of clinical notes', () => {
+  for (const species of ['dog', 'cat']) {
+    const reference = measurementReferences[species].e;
+    for (const [value, expected] of [[0.519, 'normal'], [0.52, 'normal'],
+      [0.82, 'normal'], [0.821, 'normal'], [1.199, 'normal'], [1.2, 'high'], [1.25, 'high'],
+      [1.3, 'high'], [1.5, 'high']]) {
+      assert.equal(measurementRangeStatus(value, reference), expected);
+    }
+    for (const value of [null, undefined, '', NaN, Infinity, 0, -1]) {
+      assert.equal(measurementRangeStatus(value, reference), null);
+    }
+    for (const value of [1.2, 1.25, 1.3, 1.5, 1.6]) {
+      assert.equal(classifyMeasurement(value, reference), null);
+    }
+    const suppliedNotes = `RR:0.52-0.82m/s |
+RR<1.2m/s<LAP증가(윤심초,vf)
+>1.25m/s: 역류의 양이 유의적으로 多
+>1.25m/s: LVFP증가
+>1.3m/s: (위험)곧 CHF가 발생할 수 있음
+>1.5m/s: 급사 가능(예후안좋음)
+
+심장병있으면 E파가 커짐
+정상: E peak <1.25m/s  // 1< E/A <2
+1.3m/s 이상이면 위험. (Yoon)1.3이상이면 LAP가 높아져서 폐수종 가능성이 상당히 높아진다(Yoon) E peak 위험수치가 1.3m/s다 (Yoon). E peak이 1.2거나 낮아도  CPE 유발도 가능(다른요소에 의해서)( Yoon)`;
+    assert.ok(measurementReferenceText(reference, species).includes(suppliedNotes));
+  }
+});
+
 test('M mode reference boundaries are inclusive and invalid source ranges are withheld', () => {
   const { keys, mModeReference, validRange } = require('../core');
   const rows = require('../reference-data');
