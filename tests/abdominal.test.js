@@ -10,6 +10,28 @@ test('abdominal report reproduces the supplied template exactly', () => {
   assert.equal(EchoCore.generateAbdominalReport(), `----------------------------------------------------------\n${expected}\n----------------------------------------------------------`);
 });
 
+test('adrenal updates preserve findings, reject ambiguous lines, and clear optional measurements', () => {
+  const original = EchoCore.generateAbdominalReport().replace('비장, 내분비 림프절 \n- 특이소견 확인되지 않음', '비장, 내분비 림프절 \n- 좌측 부신 전극 및 후극 비후');
+  let report = EchoCore.updateAdrenalMeasurement(original, 'ltCd', '6.50');
+  report = EchoCore.updateAdrenalMeasurement(report, 'rtCr', '6.8');
+  assert.match(report, /- 좌측 부신 전극 및 후극 비후\n  > Rt\.\) Cr\. = 6\.8mm, Cd = mm\n  > Lt\.\) Cr\. = mm, Cd = 6\.50mm/);
+  assert.equal(EchoCore.readAdrenalMeasurements(report).ltCd, '6.50');
+  assert.equal(EchoCore.updateAdrenalMeasurement(report, 'rtCr', '-2'), report);
+  const malformed = report.replace('6.8mm', 'unknown');
+  assert.equal(EchoCore.readAdrenalMeasurements(malformed).rtCr, null);
+  assert.equal(EchoCore.updateAdrenalMeasurement(malformed, 'rtCr', '7'), malformed);
+  const duplicate = report.replace('생식기', '  > Rt.) Cr. = 8mm, Cd = 9mm\n생식기');
+  assert.equal(EchoCore.readAdrenalMeasurements(duplicate).rtCr, null);
+  assert.equal(EchoCore.updateAdrenalMeasurement(duplicate, 'rtCr', '7'), duplicate);
+  const missing = original.replace('비장, 내분비 림프절', 'Edited heading');
+  assert.equal(EchoCore.updateAdrenalMeasurement(missing, 'rtCr', '7'), missing);
+  report = EchoCore.updateAdrenalMeasurement(report, 'rtCr', '');
+  report = EchoCore.updateAdrenalMeasurement(report, 'ltCd', '');
+  assert.equal(report, original);
+  const crlf = EchoCore.updateAdrenalMeasurement(original.replace(/\n/g, '\r\n'), 'rtCr', '6.8');
+  assert.equal(crlf.replace(/\r\n/g, '' ).includes('\n'), false);
+});
+
 test('all six report modes preserve species drafts, isolate cardiac controls, export and reset', async () => {
   const nodes = new Map();
   let copied, exported, downloaded;
@@ -64,10 +86,18 @@ test('all six report modes preserve species drafts, isolate cardiac controls, ex
   assert.equal(types[1].attributes['aria-pressed'], 'true');
   assert.equal(sections[0].hidden, true);
   assert.equal(sections[1].hidden, false);
-  assert.equal(get('measurements').children.length, 0);
+  assert.equal(get('measurements').children.length, 1);
   assert.equal(get('evaluations').children.length, 0);
   assert.equal(get('copy').disabled, false, 'Abdominal export accepts blank weight');
-  const abdominal = EchoCore.generateAbdominalReport().replace('by GJH', 'by Test') + '\n- LVDd: 2.2 (1-3)\n  > LVIDDN: untouched';
+  for (const [key, value] of Object.entries({ rtCr: '6.8', rtCd: '6.5', ltCr: '6.8', ltCd: '6.5' })) {
+    const input = get(`adrenal-${key}`);
+    input.value = value;
+    get('form').listeners.input({ target: input });
+  }
+  assert.match(editor.value, /  > Rt\.\) Cr\. = 6\.8mm, Cd = 6\.5mm\n  > Lt\.\) Cr\. = 6\.8mm, Cd = 6\.5mm/);
+  edit(editor.value.replace('Rt.) Cr. = 6.8mm', 'Rt.) Cr. = 7.1mm'));
+  assert.equal(get('adrenal-rtCr').value, '7.1');
+  const abdominal = editor.value.replace('by GJH', 'by Test') + '\n- LVDd: 2.2 (1-3)\n  > LVIDDN: untouched';
   edit(abdominal);
   setWeight('50');
   assert.equal(editor.value, abdominal, 'Abdominal prose is never passed through echo calculations');
@@ -98,6 +128,7 @@ test('all six report modes preserve species drafts, isolate cardiac controls, ex
   assert.equal(get('weight').max, '40');
   types[1].listeners.click();
   assert.equal(editor.value, abdominal);
+  assert.equal(get('adrenal-rtCr').value, '7.1');
   species[1].listeners.click();
   assert.equal(editor.value, catAbdominal);
   types[0].listeners.click();
@@ -105,6 +136,7 @@ test('all six report modes preserve species drafts, isolate cardiac controls, ex
   types[1].listeners.click();
   get('reset').listeners.click();
   assert.equal(editor.value, EchoCore.generateAbdominalReport());
+  assert.equal(get('adrenal-rtCr').value, '');
   types[0].listeners.click();
   assert.doesNotMatch(editor.value, /Echo cat notes/);
   species[0].listeners.click();
@@ -203,7 +235,7 @@ test('all six report modes preserve species drafts, isolate cardiac controls, ex
   for (const speciesButton of species) {
     speciesButton.listeners.click();
     const measurement = speciesButton.dataset.speciesChoice === 'cat' ? '- VHS: v, VHW: v' : '- VHS: v, VLAS: v';
-    const wrap = sections => `${'-'.repeat(61)}\n방사선 검사\n${sections}DX and DDX)\n- \n\nby GJH\n${'-'.repeat(61)}`;
+    const wrap = sections => `${'-'.repeat(58)}\n방사선 검사\n${sections}DX and DDX)\n- \n\nby GJH\n${'-'.repeat(58)}`;
     get('dr-check-all').listeners.click();
     assert.equal(editor.value, wrap(`흉부\n${measurement}\n- \n\n복부\n- \n\n전지\n- \n\n후지\n- \n\n두부\n- \n\n기타\n- \n\n`));
     for (const input of regions) {

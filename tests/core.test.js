@@ -52,7 +52,7 @@ test('reports preserve entered values, diagnosis lines and blank clinical findin
   assert.match(report, /IVSd: 0.75 \(0.698-0.834\)/);
   assert.match(report, /FS: 35%/);
   assert.match(report, /E peak velocity : 0.9 m\/s/);
-  assert.match(report, /DX and DDX\)\n- First\n- Second\n\nby GJH\n-{61}$/);
+  assert.match(report, /DX and DDX\)\n- First\n- Second\n\nby GJH\n-{58}$/);
   assert.doesNotMatch(report, /prolapse|수축기 와류가/);
   assert.match(generateReport({}, null), /참고범위 없음/);
 });
@@ -76,7 +76,7 @@ test('weight updates preserve edited prose, measurements, author and deleted lin
   assert.match(updated, /LVDd: 2.2 \(1.783-2.002\)/);
   assert.match(updated, /IVSd: 0.75/);
   assert.match(updated, /Custom heading\nFree text \(0.698-0.834\)/);
-  assert.match(updated, /Custom diagnosis\n- Follow up\n\nby Edited author\n-{61}$/);
+  assert.match(updated, /Custom diagnosis\n- Follow up\n\nby Edited author\n-{58}$/);
   assert.doesNotMatch(updated, /LVPWs/);
   assert.equal(updateReportReferences('', rows[0], 'dog'), '');
   assert.match(updateReportReferences(updated, null, 'dog'), /LVDd: 2.2 \(참고범위 없음\)/);

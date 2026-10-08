@@ -18,6 +18,9 @@ const {
   validRange,
   generateReport,
   generateAbdominalReport,
+  adrenalFields,
+  readAdrenalMeasurements,
+  updateAdrenalMeasurement,
   generateImagingReport,
   reportTypes,
   updateReportReferences,
@@ -106,6 +109,34 @@ function activeMeasurementReference(key) {
 function buildMeasurementInputs() {
   const container = $('measurements');
   container.replaceChildren();
+  if (currentReportType === 'abdominal') {
+    const section = document.createElement('section');
+    section.className = 'card';
+    const heading = document.createElement('h2');
+    heading.textContent = 'Adrenal gland measurements';
+    const hint = document.createElement('p');
+    hint.className = 'hint';
+    hint.textContent = 'Enter pole sizes in mm. Measurements update the spleen / endocrine / lymph node section. Edit clinical findings directly in the report.';
+    const grid = document.createElement('div');
+    grid.className = 'grid';
+    for (const field of adrenalFields) {
+      const label = document.createElement('label');
+      const caption = document.createElement('span');
+      caption.textContent = `${field.label} (mm)`;
+      label.append(caption);
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.min = '0';
+      input.step = 'any';
+      input.id = `adrenal-${field.key}`;
+      input.dataset.adrenal = field.key;
+      label.append(input);
+      grid.append(label);
+    }
+    section.append(heading, hint, grid);
+    container.append(section);
+    return;
+  }
   if (currentReportType !== 'echo') return;
   for (const group of ['B mode', 'M mode', 'Doppler']) {
     const section = document.createElement('section');
@@ -150,7 +181,6 @@ function buildMeasurementInputs() {
       if (reference) {
         label.className = 'has-reference';
         caption.className = 'measurement-reference';
-        caption.tabIndex = 0;
         const tooltip = document.createElement('span');
         tooltip.id = `measurement-reference-${field.key}`;
         tooltip.className = 'measurement-tooltip';
@@ -158,11 +188,11 @@ function buildMeasurementInputs() {
         tooltip.textContent = measurementReferenceText(reference, currentSpecies);
         caption.setAttribute('aria-describedby', tooltip.id);
         caption.append(tooltip);
-        caption.addEventListener('keydown', event => {
+        label.addEventListener('keydown', event => {
           if (event.key === 'Escape') caption.classList.add('dismissed');
         });
         caption.addEventListener('mouseenter', () => caption.classList.remove('dismissed'));
-        caption.addEventListener('focus', () => caption.classList.remove('dismissed'));
+        label.addEventListener('focusin', () => caption.classList.remove('dismissed'));
         const status = document.createElement('span');
         status.id = `measurement-status-${field.key}`;
         status.className = 'measurement-status';
@@ -204,6 +234,16 @@ function buildMeasurementInputs() {
 }
 
 function syncMeasurementInputs() {
+  if (currentReportType === 'abdominal') {
+    for (const [key, raw] of Object.entries(readAdrenalMeasurements($('report').value))) {
+      const input = $(`adrenal-${key}`);
+      if (document.activeElement !== input) input.value = raw ?? '';
+      input.disabled = raw === null;
+      input.placeholder = input.disabled ? 'Check report section' : '';
+      input.title = input.disabled ? 'Restore the section heading and a single numeric or blank measurement line for this side.' : '';
+    }
+    return;
+  }
   if (currentReportType !== 'echo') return;
   measurements = readReportMeasurements($('report').value, currentSpecies);
   for (const [key, measurement] of Object.entries(measurements)) {
@@ -311,7 +351,7 @@ function update() {
   $('report').setAttribute('aria-label', `Editable ${modality.label} report`);
   $('report').setAttribute('lang', modality.lang);
   $('preview-help').textContent = abdominal
-    ? 'Edit the supplied Korean abdominal ultrasound template directly. Review each organ finding, then edit diagnoses and author. Copy report or Save TXT exports the current draft.'
+    ? 'Enter adrenal pole sizes in the left panel or edit them directly in the report. Review each organ finding, then edit diagnoses and author. Copy report or Save TXT exports the current draft.'
     : currentReportType === 'dr' ? `${$('imaging-instructions').textContent} Copy report or Save TXT exports the current draft.`
     : echo ? echoPreviewHelp
       : `Edit the ${modality.label} template directly. Enter the study region, history, technique, findings, impressions, recommendations, and author. Copy report or Save TXT exports the current draft.`;
@@ -336,6 +376,7 @@ function update() {
     $('reference-badge').textContent = modality.label;
     measurements = {};
     $('evaluations').replaceChildren();
+    syncMeasurementInputs();
     updateExport();
     return;
   }
@@ -380,6 +421,14 @@ function newReport() {
 }
 
 $('form').addEventListener('input', event => {
+  if (currentReportType === 'abdominal' && event.target.dataset.adrenal) {
+    if (event.target.validity.valid) {
+      $('report').value = updateAdrenalMeasurement($('report').value, event.target.dataset.adrenal, event.target.value);
+      syncMeasurementInputs();
+    }
+    updateExport();
+    return;
+  }
   if (currentReportType !== 'echo') {
     if (event.target === $('weight')) update();
     return;

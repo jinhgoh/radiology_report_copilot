@@ -187,6 +187,61 @@
     ].join('\n');
   }
 
+  const adrenalFields = [
+    { key: 'rtCr', side: 'Rt', pole: 1, label: 'Right cranial (Cr.)' },
+    { key: 'rtCd', side: 'Rt', pole: 2, label: 'Right caudal (Cd.)' },
+    { key: 'ltCr', side: 'Lt', pole: 1, label: 'Left cranial (Cr.)' },
+    { key: 'ltCd', side: 'Lt', pole: 2, label: 'Left caudal (Cd.)' },
+  ];
+
+  function adrenalSection(report) {
+    const lines = report.split(/\r?\n/);
+    const starts = lines.flatMap((line, index) => line.trim() === '비장, 내분비 림프절' ? [index] : []);
+    if (starts.length !== 1) return null;
+    const start = starts[0] + 1;
+    let end = start;
+    while (end < lines.length && (!lines[end].trim() || /^[ \t]*[- >]/.test(lines[end]))) end++;
+    return { lines, start, end, newline: report.includes('\r\n') ? '\r\n' : '\n' };
+  }
+
+  function adrenalLine(section, side) {
+    if (!section) return null;
+    const candidates = section.lines.slice(section.start, section.end)
+      .flatMap((line, offset) => new RegExp(`^[ \\t]*>[ \\t]*${side}\\.\\)`).test(line) ? [section.start + offset] : []);
+    if (!candidates.length) return { index: -1, values: ['', ''] };
+    if (candidates.length !== 1) return null;
+    const number = '(\\d+(?:\\.\\d+)?|\\.\\d+)?';
+    const match = new RegExp(`^[ \\t]*>[ \\t]*${side}\\.\\)[ \\t]*Cr\\.[ \\t]*=[ \\t]*${number}[ \\t]*mm,[ \\t]*Cd\\.?[ \\t]*=[ \\t]*${number}[ \\t]*mm[ \\t]*$`).exec(section.lines[candidates[0]]);
+    return match ? { index: candidates[0], values: [match[1] || '', match[2] || ''] } : null;
+  }
+
+  function readAdrenalMeasurements(report) {
+    const section = adrenalSection(report);
+    return Object.fromEntries(adrenalFields.map(field => [field.key, adrenalLine(section, field.side)?.values[field.pole - 1] ?? null]));
+  }
+
+  function updateAdrenalMeasurement(report, key, raw) {
+    const field = adrenalFields.find(field => field.key === key);
+    if (!field || !/^(?:\d+(?:\.\d+)?|\.\d+)?$/.test(raw) || (raw !== '' && !Number.isFinite(Number(raw)))) return report;
+    const section = adrenalSection(report);
+    const line = adrenalLine(section, field.side);
+    if (!line) return report;
+    line.values[field.pole - 1] = raw;
+    if (line.values.every(value => value === '')) {
+      if (line.index >= 0) section.lines.splice(line.index, 1);
+    } else {
+      const text = `  > ${field.side}.) Cr. = ${line.values[0]}mm, Cd = ${line.values[1]}mm`;
+      if (line.index >= 0) section.lines[line.index] = text;
+      else {
+        const left = field.side === 'Rt' ? adrenalLine(section, 'Lt') : null;
+        let index = left?.index >= 0 ? left.index : section.end;
+        while (index > section.start && !section.lines[index - 1].trim()) index--;
+        section.lines.splice(index, 0, text);
+      }
+    }
+    return section.lines.join(section.newline);
+  }
+
   function generateAbdominalReport() {
     return [
       reportSeparator,
@@ -425,6 +480,9 @@
   }
 
   const api = {
+    adrenalFields,
+    readAdrenalMeasurements,
+    updateAdrenalMeasurement,
     reportTypes,
     generateImagingReport,
     generateAbdominalReport,
