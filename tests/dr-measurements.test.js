@@ -7,7 +7,8 @@ for (const [species, other] of [['dog', 'VLAS'], ['cat', 'VHW']]) {
     const original = generateImagingReport('dr', species).replace('- \n', '- Clinical note\n').replace(/\n/g, '\r\n');
     let report = updateDrMeasurement(original, 'VHS', '9.50', species);
     report = updateDrMeasurement(report, other, '2.1', species);
-    assert.deepEqual(readDrMeasurements(report, species), { VHS: '9.50', [other]: '2.1' });
+    assert.equal(readDrMeasurements(report, species).VHS, '9.50');
+    assert.equal(readDrMeasurements(report, species)[other], '2.1');
     report = updateDrMeasurement(report, 'VHS', '', species);
     report = updateDrMeasurement(report, other, '', species);
     assert.equal(report, original);

@@ -169,11 +169,11 @@ test('all six report modes preserve species drafts, isolate cardiac controls, ex
     assert.equal(sections[0].hidden, true);
     assert.equal(sections[1].hidden, true);
     assert.equal(get('imaging-guide').hidden, false);
-    assert.equal(get('measurements').children.length, type === 'dr' ? 1 : 0);
+    assert.equal(get('measurements').children.length, type === 'dr' ? 4 : 0);
     if (type === 'dr') {
       const card = get('measurements').children[0];
       assert.deepEqual(Array.from(card.children.slice(0, -1), child => child.textContent), [
-        'Heart size',
+        'Chest',
       ]);
       assert.equal(get('imaging-reference').hidden, false);
       assert.equal(get('imaging-reference').textContent,
@@ -222,7 +222,7 @@ test('all six report modes preserve species drafts, isolate cardiac controls, ex
     if (type === 'dr') {
       const card = get('measurements').children[0];
       assert.deepEqual(Array.from(card.children.slice(0, -1), child => child.textContent), [
-        'Heart size',
+        'Chest',
       ]);
       assert.equal(get('imaging-reference').textContent,
         'Cat normal ranges\nVHS [vertebral heart score]: 6.8-8.1v\nICS [intercostal space]: 2-2.5\nVHW [vertebral heart width]: 2.9-4.1v');
@@ -295,16 +295,16 @@ test('all six report modes preserve species drafts, isolate cardiac controls, ex
   types[2].listeners.click();
   for (const speciesButton of species) {
     speciesButton.listeners.click();
-    const measurement = speciesButton.dataset.speciesChoice === 'cat' ? '- VHS: v, VHW: v' : '- VHS: v, VLAS: v';
+    const section = region => EchoCore.generateDrSection(region, speciesButton.dataset.speciesChoice);
     const wrap = sections => `${'-'.repeat(58)}\n방사선 검사\n${sections}DX and DDX)\n- \n\nby GJH\n${'-'.repeat(58)}`;
     get('dr-check-all').listeners.click();
-    assert.equal(editor.value, wrap(`흉부\n${measurement}\n- \n\n복부\n- \n\n전지\n- \n\n후지\n- \n\n두부\n- \n\n기타\n- \n\n`));
+    assert.equal(editor.value, wrap(['흉부', '복부', '전지', '후지', '두부', '기타'].map(section).join('')));
     for (const input of regions) {
       get('dr-uncheck-all').listeners.click();
       input.checked = true;
       input.listeners.change();
       const region = input.dataset.drRegion;
-      assert.equal(editor.value, wrap(`${region}\n${region === '흉부' ? measurement + '\n' : ''}- \n\n`));
+      assert.equal(editor.value, wrap(section(region)));
     }
   }
   species[0].listeners.click();

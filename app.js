@@ -22,7 +22,8 @@ const {
   readAdrenalMeasurements,
   updateAdrenalMeasurement,
   generateImagingReport,
-  drMeasurementKeys,
+  drMeasurementFields,
+  generateDrSection,
   readDrMeasurements,
   updateDrMeasurement,
   reportTypes,
@@ -77,8 +78,7 @@ function changeDrRegion(input) {
     } else if (input.checked && index < 0) {
       const next = headings.find(match => drRegions.indexOf(match[1]) > drRegions.indexOf(region) || match[1] === 'DX and DDX)');
       if (next) {
-        const measurements = currentSpecies === 'cat' ? '- VHS: v, VHW: v' : '- VHS: v, VLAS: v';
-        const section = saved[region] ?? `${region}\n${region === '흉부' ? measurements + '\n' : ''}- \n\n`;
+        const section = saved[region] ?? generateDrSection(region, currentSpecies);
         editor.value = editor.value.slice(0, next.index) + section + editor.value.slice(next.index);
       }
     }
@@ -111,6 +111,8 @@ function activeMeasurementReference(key) {
 }
 
 function drReferenceText(key) {
+  const field = drMeasurementFields(currentSpecies).find(field => field.key === key);
+  if (field?.reference) return `${currentSpecies === 'cat' ? 'Cat' : 'Dog'} normal ranges\n${field.reference}`;
   const cat = currentSpecies === 'cat';
   const ranges = cat ? [
     ['VHS', 'vertebral heart score', '6.8-8.1v'],
@@ -132,21 +134,25 @@ function buildMeasurementInputs() {
   const container = $('measurements');
   container.replaceChildren();
   if (currentReportType === 'dr') {
+    for (const [region, title] of [['흉부', 'Chest'], ['복부', 'Abdomen'], ['후지', 'Hindlimbs'], ['두부', 'Head / neck']]) {
+    const fields = drMeasurementFields(currentSpecies).filter(field => field.region === region);
+    if (!fields.length) continue;
     const section = document.createElement('section');
     section.className = 'card';
     const heading = document.createElement('h2');
-    heading.textContent = 'Heart size';
+    heading.textContent = title;
     section.append(heading);
     const grid = document.createElement('div');
     grid.className = 'grid';
-    for (const key of drMeasurementKeys(currentSpecies)) {
+    for (const field of fields) {
+      const { key } = field;
       const label = document.createElement('label');
       label.id = `dr-row-${key}`;
       label.className = 'has-reference dr-heart-measurement';
       const caption = document.createElement('span');
       caption.id = `dr-caption-${key}`;
       caption.className = 'measurement-reference';
-      caption.textContent = `${key} (v)`;
+      caption.textContent = `${field.label} (${field.unit})`;
       const tooltip = document.createElement('span');
       tooltip.id = `dr-reference-${key}`;
       tooltip.className = 'measurement-tooltip';
@@ -177,6 +183,7 @@ function buildMeasurementInputs() {
     }
     section.append(grid);
     container.append(section);
+    }
     return;
   }
   if (currentReportType === 'abdominal') {
@@ -305,12 +312,10 @@ function buildMeasurementInputs() {
 
 function syncDrClassification(key) {
   const input = $(`dr-${key}`);
-  const normal = currentSpecies === 'cat'
-    ? { VHS: { min: 6.8, max: 8.1 }, VHW: { min: 2.9, max: 4.1 } }
-    : { VHS: { min: 8.7, max: 10.7 }, VLAS: { max: 2.3, maxInclusive: false } };
+  const normal = drMeasurementFields(currentSpecies).find(field => field.key === key)?.range;
   const rangeStatus = measurementRangeStatus(
     input.disabled || !input.validity.valid ? NaN : input.valueAsNumber,
-    { bands: [{ severity: 'normal', ...normal[key] }] });
+    { bands: normal ? [{ severity: 'normal', ...normal }] : [] });
   const row = $(`dr-row-${key}`);
   row.dataset.rangeStatus = rangeStatus || '';
   row.classList.toggle('has-classification', Boolean(rangeStatus));
@@ -329,7 +334,8 @@ function syncMeasurementInputs() {
       }
       input.disabled = raw === null;
       input.placeholder = input.disabled ? 'Check report line' : '';
-      input.title = input.disabled ? 'Restore the chest section and a single numeric or blank measurement with its v unit.' : '';
+      const field = drMeasurementFields(currentSpecies).find(field => field.key === key);
+      input.title = input.disabled ? `Select the ${field.region} region and restore a single numeric or blank ${field.label} line${field.unit === 'ratio' ? '' : ` with its ${field.unit} unit`}.` : '';
       syncDrClassification(key);
     }
     return;
@@ -449,7 +455,7 @@ function update() {
   $('imaging-reference').hidden = currentReportType !== 'dr';
   $('imaging-reference').textContent = currentReportType === 'dr' ? drReferenceText() : '';
   $('imaging-instructions').textContent = currentReportType === 'dr'
-    ? 'Enter heart-size measurements in the left panel or edit them in Report preview. Select study regions and edit findings, diagnoses, and author in the preview. Dogs use VHS and VLAS; cats use VHS and VHW.'
+    ? 'Select study regions to enable their measurement inputs. Enter measurements in the left panel or edit them in Report preview. Edit findings, diagnoses, and author in the preview.'
     : 'Edit the study region, clinical history, comparison, technique, findings, impressions, recommendations, and author directly in Report preview. Fill in the blank sections for the patient.';
   $('report').setAttribute('aria-label', `Editable ${modality.label} report`);
   $('report').setAttribute('lang', modality.lang);

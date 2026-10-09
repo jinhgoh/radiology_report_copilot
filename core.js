@@ -157,16 +157,53 @@
     fluoroscopy: { label: 'Fluoroscopy', filename: 'fluoroscopy', lang: 'en', title: 'Fluoroscopy', technique: ['Procedure / positioning', 'Contrast', 'Dynamic assessment / maneuvers', 'Image quality / limitations'] },
   };
 
+  function drMeasurementFields(species) {
+    const cat = species === 'cat';
+    const upper = max => ({ max, maxInclusive: false });
+    const field = (key, label, region, unit, reference, range) => ({ key, label, region, unit, reference, range });
+    return [
+      field('VHS', 'VHS', '흉부', 'v', '', cat ? { min: 6.8, max: 8.1 } : { min: 8.7, max: 10.7 }),
+      cat ? field('VHW', 'VHW', '흉부', 'v', '', { min: 2.9, max: 4.1 })
+        : field('VLAS', 'VLAS', '흉부', 'v', '', upper(2.3)),
+      ...(!cat ? ['PA', 'PV'].flatMap(vessel => [
+        field(`${vessel}4`, `${vessel} / proximal 1/3 4th rib width`, '흉부', 'ratio', `${vessel} < proximal 1/3 4th rib width (ratio < 1.0).`, upper(1)),
+        field(`${vessel}9`, `${vessel} / 9th rib width`, '흉부', 'ratio', `${vessel} < 9th rib width (ratio < 1.0).`, upper(1)),
+      ]) : []),
+      field('mediastinum', 'Vertebral body / mediastinum width', '흉부', 'ratio', `Vertebral body / mediastinum width < ${cat ? '1.0' : '2.0'}.`, upper(cat ? 1 : 2)),
+      field('kidney', 'Kidney LK/L2', '복부', 'ratio', cat ? 'Intact cat LK/L2: 2.1~3.2\nNeutered cat LK/L2: 1.9~2.6' : 'LK/L2: 2.5-3.5', cat ? null : { min: 2.5, max: 3.5 }),
+      field('smallIntestine', cat ? 'Small intestine / L2 end plate' : 'Small intestine / L5 width', '복부', 'ratio', cat ? 'Small intestine / L2 end plate ratio < 2.0 or diameter < 12mm.' : 'Small intestine / L5 width ratio < 1.6.', upper(cat ? 2 : 1.6)),
+      ...(cat ? [field('smallIntestineMm', 'Small intestine diameter', '복부', 'mm', 'Diameter < 12mm or small intestine / L2 end plate ratio < 2.0.', upper(12))] : []),
+      field('largeIntestine', cat ? 'Large intestine / L5 length' : 'Large intestine / L7 length', '복부', 'ratio', cat ? 'Large intestine / L5 length ratio < 1.5.' : 'Large intestine / L7 length ratio < 1.0.\nRanges vary between books (책마다 다름).', upper(cat ? 1.5 : 1)),
+      ...(!cat ? [
+        field('prostateLength', 'Prostate length / pelvic inlet', '복부', 'ratio', 'Prostate length or depth / pelvic inlet < 0.7.', upper(0.7)),
+        field('prostateDepth', 'Prostate depth / pelvic inlet', '복부', 'ratio', 'Prostate length or depth / pelvic inlet < 0.7.', upper(0.7)),
+        field('retropharyngeal', 'Retropharyngeal width / C3 length', '두부', 'ratio', 'Retropharyngeal space width < C3 length (ratio < 1.0).', upper(1)),
+      ] : []),
+      ...['Left', 'Right'].map(side => field(`norberg${side}`, `${side} Norberg angle`, '후지', '°', `Norberg angle ≥ ${cat ? 95 : 105}°.`, { min: cat ? 95 : 105 })),
+    ];
+  }
+
   function drMeasurementKeys(species) {
-    return species === 'cat' ? ['VHS', 'VHW'] : ['VHS', 'VLAS'];
+    return drMeasurementFields(species).map(field => field.key);
+  }
+
+  function generateDrSection(region, species) {
+    const fields = drMeasurementFields(species).filter(field => field.region === region);
+    const lines = fields.filter(field => !['VHS', 'VLAS', 'VHW'].includes(field.key))
+      .map(field => `- ${field.label}: ${field.unit === 'ratio' ? '' : field.unit}`);
+    if (region === '흉부') lines.unshift(species === 'cat' ? '- VHS: v, VHW: v' : '- VHS: v, VLAS: v');
+    return [region, ...lines, '- ', '', ''].join('\n');
   }
 
   function drMeasurementSlot(report, key, species) {
-    if (!drMeasurementKeys(species).includes(key)) return null;
-    const sections = [...report.matchAll(/^흉부\r?\n([\s\S]*?)(?=^(?:복부|전지|후지|두부|기타|흉부|DX and DDX\)|-{10,})\r?$|(?![\s\S]))/gm)];
+    const field = drMeasurementFields(species).find(field => field.key === key);
+    if (!field) return null;
+    const sections = [...report.matchAll(new RegExp(`^${field.region}\\r?\\n([\\s\\S]*?)(?=^(?:복부|전지|후지|두부|기타|흉부|DX and DDX\\)|-{10,})\\r?$|(?![\\s\\S]))`, 'gm'))];
     if (sections.length !== 1) return null;
     const section = sections[0];
-    const pattern = new RegExp(`((?:^[ \\t]*-[ \\t]*|,[ \\t]*)${key}[ \\t]*:[ \\t]*)(${numericSlot})(?=[ \\t]*v[ \\t]*(?:,|\\r?$))`, 'gm');
+    const label = field.label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    const unit = field.unit === 'ratio' ? '' : field.unit;
+    const pattern = new RegExp(`((?:^[ \\t]*-[ \\t]*|,[ \\t]*)${label}[ \\t]*:[ \\t]*)(${numericSlot})(?=[ \\t]*${unit}[ \\t]*(?:,|\\r?$))`, 'gm');
     const matches = [...section[1].matchAll(pattern)];
     if (matches.length !== 1) return null;
     const match = matches[0];
@@ -189,8 +226,7 @@
       return [
         reportSeparator,
         '방사선 검사',
-        '흉부',
-        species === 'cat' ? '- VHS: v, VHW: v' : '- VHS: v, VLAS: v', '- ', '',
+        generateDrSection('흉부', species).slice(0, -1),
         'DX and DDX)', '- ', '',
         'by GJH',
         reportSeparator,
@@ -530,6 +566,8 @@ Range colors use the requested RR <1.2 m/s. The original supplied notes above ar
   }
 
   const api = {
+    drMeasurementFields,
+    generateDrSection,
     drMeasurementKeys,
     readDrMeasurements,
     updateDrMeasurement,
