@@ -24,19 +24,19 @@
     </div>
     <div class="workspace">
       <form id="form" autocomplete="off">
-        <section class="card"><div class="section-title"><h2>Patient information <span class="help"><button type="button" class="help-button" aria-label="Weight reference help" aria-describedby="weight-policy">i</button><span id="weight-policy" class="help-tooltip" role="tooltip">Weights between table entries use the nearest row. Ties use the lower weight. Values are not interpolated.</span></span></h2><button type="button" id="reset" class="text-button">New patient</button></div>
-          <div class="patient-row"><div><input type="hidden" id="species" value="dog"><div class="species-toggle" role="group" aria-label="Species"><button type="button" data-species-choice="dog" aria-pressed="true">Dog</button><button type="button" data-species-choice="cat" aria-pressed="false">Cat</button></div></div><label>Weight (kg)<input id="weight" type="number" min="0.5" max="40" step="any" placeholder="e.g. 8.6" required></label></div>
+        <div class="section-title patient-controls"><input type="hidden" id="species" value="dog"><div class="species-toggle" role="group" aria-label="Species"><button type="button" data-species-choice="dog" aria-pressed="true">Dog</button><button type="button" data-species-choice="cat" aria-pressed="false">Cat</button></div><button type="button" id="reset" class="text-button">New patient</button></div>
+        <section class="card" data-report-type="echo"><h2>Patient information <span class="help"><button type="button" class="help-button" aria-label="Weight reference help" aria-describedby="weight-policy">i</button><span id="weight-policy" class="help-tooltip" role="tooltip">Weights between table entries use the nearest row. Ties use the lower weight. Values are not interpolated.</span></span></h2>
+          <label>Weight (kg)<input id="weight" type="number" min="0.5" max="40" step="any" placeholder="e.g. 8.6" required></label>
           <p id="weight-status" class="notice" aria-live="polite">Enter a weight to display reference ranges. Supported range: 0.5–40 kg.</p>
         </section>
-        <section class="card" data-report-type="abdominal" hidden>
+        <section class="exam-guide section-title" data-report-type="abdominal" hidden>
           <h2>Abdominal ultrasound</h2>
-          <p class="hint">Edit the organ findings, diagnoses, and author directly in Report preview. The supplied Korean template starts each organ section with “특이소견 확인되지 않음”; review and replace these statements for the patient.</p>
-          <p class="hint">Weight is optional. Switching report type or species keeps a separate draft for each combination until New patient is selected or the app closes.</p>
+          <span class="help"><button type="button" class="help-button" aria-label="Abdominal ultrasound instructions" aria-describedby="abdominal-guide-help">i</button><span id="abdominal-guide-help" class="help-tooltip" role="tooltip"><span>Edit the organ findings, diagnoses, and author directly in Report preview. The supplied Korean template starts each organ section with “특이소견 확인되지 않음”; review and replace these statements for the patient.</span><span class="guide-draft-help">Switching report type or species keeps a separate draft for each combination until New patient is selected or the app closes.</span></span></span>
         </section>
         <section class="card" data-report-type="dr" hidden>
           <div class="section-title"><h2>Study regions</h2><div class="finding-actions"><button type="button" id="dr-check-all" class="text-button">Check all</button><button type="button" id="dr-uncheck-all" class="text-button">Uncheck all</button></div></div>
           <p class="hint">Select the regions to include in the report. Unchecked sections are kept until New patient is selected.</p>
-          <div role="group" aria-label="DR study regions">
+          <div class="dr-region-options" role="group" aria-label="DR study regions">
             <label class="finding-option" lang="ko"><input type="checkbox" data-dr-region="흉부" checked><span>흉부</span></label>
             <label class="finding-option" lang="ko"><input type="checkbox" data-dr-region="복부"><span>복부</span></label>
             <label class="finding-option" lang="ko"><input type="checkbox" data-dr-region="전지"><span>전지</span></label>
@@ -45,10 +45,9 @@
             <label class="finding-option" lang="ko"><input type="checkbox" data-dr-region="기타"><span>기타</span></label>
           </div>
         </section>
-        <section class="card" id="imaging-guide" hidden>
+        <section class="exam-guide section-title" id="imaging-guide" hidden>
           <h2 id="imaging-title">Imaging report</h2>
-          <p class="hint" id="imaging-instructions">Edit the study region, clinical history, comparison, technique, findings, impressions, recommendations, and author directly in Report preview. Fill in the blank sections for the patient.</p>
-          <p class="hint">Weight is optional. Switching report type or species keeps a separate draft for each combination until New patient is selected or the app closes.</p>
+          <span class="help"><button type="button" class="help-button" aria-label="Imaging report instructions" aria-describedby="imaging-guide-help">i</button><span id="imaging-guide-help" class="help-tooltip" role="tooltip"><span id="imaging-reference" hidden></span><span id="imaging-instructions">Edit the study region, clinical history, comparison, technique, findings, impressions, recommendations, and author directly in Report preview. Fill in the blank sections for the patient.</span><span class="guide-draft-help">Switching report type or species keeps a separate draft for each combination until New patient is selected or the app closes.</span></span></span>
         </section>
         <div data-report-type="echo">
         <section class="card">

@@ -22,6 +22,9 @@ const {
   readAdrenalMeasurements,
   updateAdrenalMeasurement,
   generateImagingReport,
+  drMeasurementKeys,
+  readDrMeasurements,
+  updateDrMeasurement,
   reportTypes,
   updateReportReferences,
   updateReportLviddn,
@@ -80,6 +83,7 @@ function changeDrRegion(input) {
       }
     }
     syncDrRegions();
+    syncMeasurementInputs();
     updateExport();
 }
 
@@ -106,9 +110,75 @@ function activeMeasurementReference(key) {
     : measurementReferences[currentSpecies]?.[key];
 }
 
+function drReferenceText(key) {
+  const cat = currentSpecies === 'cat';
+  const ranges = cat ? [
+    ['VHS', 'vertebral heart score', '6.8-8.1v'],
+    ['ICS', 'intercostal space', '2-2.5'],
+    ['VHW', 'vertebral heart width', '2.9-4.1v'],
+  ] : [
+    ['VHS', 'vertebral heart scale', '8.7-10.7v'],
+    ['ICS', 'intercostal space', '2.5-3.5'],
+    ['VLAS', 'vertebral left atrial score', '< 2.3v'],
+    ['CTR', 'Cardio-thoracic ratio', '0.5-0.66'],
+  ];
+  return `${cat ? 'Cat' : 'Dog'} normal ranges\n` +
+    ranges.filter(row => !key || row[0] === key)
+      .map(([name, description, range]) => `${name} [${description}]: ${range}`).join('\n') +
+    (!cat && (!key || key === 'VHS') ? `${key ? '\n' : '\n\n'}VHS breed references\nShi-tzu: 8.3-10.7v\nPomeranian: 9.6-11.4v\nPoodle: 9.1-11.1v` : '');
+}
+
 function buildMeasurementInputs() {
   const container = $('measurements');
   container.replaceChildren();
+  if (currentReportType === 'dr') {
+    const section = document.createElement('section');
+    section.className = 'card';
+    const heading = document.createElement('h2');
+    heading.textContent = 'Heart size';
+    section.append(heading);
+    const grid = document.createElement('div');
+    grid.className = 'grid';
+    for (const key of drMeasurementKeys(currentSpecies)) {
+      const label = document.createElement('label');
+      label.id = `dr-row-${key}`;
+      label.className = 'has-reference dr-heart-measurement';
+      const caption = document.createElement('span');
+      caption.id = `dr-caption-${key}`;
+      caption.className = 'measurement-reference';
+      caption.textContent = `${key} (v)`;
+      const tooltip = document.createElement('span');
+      tooltip.id = `dr-reference-${key}`;
+      tooltip.className = 'measurement-tooltip';
+      tooltip.setAttribute('role', 'tooltip');
+      tooltip.textContent = drReferenceText(key);
+      caption.setAttribute('aria-describedby', tooltip.id);
+      caption.append(tooltip);
+      label.addEventListener('keydown', event => {
+        if (event.key === 'Escape') caption.classList.add('dismissed');
+      });
+      label.addEventListener('mouseenter', () => caption.classList.remove('dismissed'));
+      label.addEventListener('focusin', () => caption.classList.remove('dismissed'));
+      const status = document.createElement('span');
+      status.id = `dr-status-${key}`;
+      status.className = 'measurement-status';
+      status.setAttribute('aria-live', 'polite');
+      status.hidden = true;
+      const input = document.createElement('input');
+      input.type = 'number';
+      input.min = '0';
+      input.step = 'any';
+      input.id = `dr-${key}`;
+      input.dataset.drMeasurement = key;
+      input.setAttribute('aria-labelledby', caption.id);
+      input.setAttribute('aria-describedby', `${status.id} ${tooltip.id}`);
+      label.append(caption, status, input);
+      grid.append(label);
+    }
+    section.append(grid);
+    container.append(section);
+    return;
+  }
   if (currentReportType === 'abdominal') {
     const section = document.createElement('section');
     section.className = 'card';
@@ -233,7 +303,37 @@ function buildMeasurementInputs() {
   }
 }
 
+function syncDrClassification(key) {
+  const input = $(`dr-${key}`);
+  const normal = currentSpecies === 'cat'
+    ? { VHS: { min: 6.8, max: 8.1 }, VHW: { min: 2.9, max: 4.1 } }
+    : { VHS: { min: 8.7, max: 10.7 }, VLAS: { max: 2.3, maxInclusive: false } };
+  const rangeStatus = measurementRangeStatus(
+    input.disabled || !input.validity.valid ? NaN : input.valueAsNumber,
+    { bands: [{ severity: 'normal', ...normal[key] }] });
+  const row = $(`dr-row-${key}`);
+  row.dataset.rangeStatus = rangeStatus || '';
+  row.classList.toggle('has-classification', Boolean(rangeStatus));
+  const status = $(`dr-status-${key}`);
+  status.textContent = rangeStatus ? `(${rangeStatus})` : '';
+  status.hidden = !rangeStatus;
+}
+
 function syncMeasurementInputs() {
+  if (currentReportType === 'dr') {
+    for (const [key, raw] of Object.entries(readDrMeasurements($('report').value, currentSpecies))) {
+      const input = $(`dr-${key}`);
+      if (document.activeElement !== input || raw === null) {
+        input.value = raw ?? '';
+        input.setCustomValidity('');
+      }
+      input.disabled = raw === null;
+      input.placeholder = input.disabled ? 'Check report line' : '';
+      input.title = input.disabled ? 'Restore the chest section and a single numeric or blank measurement with its v unit.' : '';
+      syncDrClassification(key);
+    }
+    return;
+  }
   if (currentReportType === 'abdominal') {
     for (const [key, raw] of Object.entries(readAdrenalMeasurements($('report').value))) {
       const input = $(`adrenal-${key}`);
@@ -335,6 +435,7 @@ function update() {
   syncDrRegions();
   const abdominal = currentReportType === 'abdominal';
   const echo = currentReportType === 'echo';
+  $('weight').disabled = !echo;
   const modality = reportTypes[currentReportType];
   $('report').dataset.reportMode = currentReportType;
   document.querySelectorAll('[data-report-choice]').forEach(button => {
@@ -345,8 +446,10 @@ function update() {
   });
   $('imaging-guide').hidden = echo || abdominal;
   $('imaging-title').textContent = modality.title || modality.label;
+  $('imaging-reference').hidden = currentReportType !== 'dr';
+  $('imaging-reference').textContent = currentReportType === 'dr' ? drReferenceText() : '';
   $('imaging-instructions').textContent = currentReportType === 'dr'
-    ? 'Select study regions in the left panel and edit findings, diagnoses, and author directly in Report preview. Dogs use VHS and VLAS; cats use VHS and VHW.'
+    ? 'Enter heart-size measurements in the left panel or edit them in Report preview. Select study regions and edit findings, diagnoses, and author in the preview. Dogs use VHS and VLAS; cats use VHS and VHW.'
     : 'Edit the study region, clinical history, comparison, technique, findings, impressions, recommendations, and author directly in Report preview. Fill in the blank sections for the patient.';
   $('report').setAttribute('aria-label', `Editable ${modality.label} report`);
   $('report').setAttribute('lang', modality.lang);
@@ -367,12 +470,7 @@ function update() {
   });
   if (!echo) {
     $('weight').required = false;
-    $('weight').min = '0';
-    $('weight').removeAttribute('max');
-    $('weight').setCustomValidity(weight <= 0 ? 'Enter a weight greater than 0.' : '');
-    $('weight-policy').textContent = `Weight is optional for ${modality.label} reports.`;
-    $('weight-status').textContent = `${modality.label} · weight is optional.`;
-    $('weight-status').classList.toggle('warning', !$('weight').validity.valid);
+    $('weight').setCustomValidity('');
     $('reference-badge').textContent = modality.label;
     measurements = {};
     $('evaluations').replaceChildren();
@@ -421,6 +519,17 @@ function newReport() {
 }
 
 $('form').addEventListener('input', event => {
+  if (currentReportType === 'dr' && event.target.dataset.drMeasurement) {
+    const input = event.target;
+    input.setCustomValidity(input.value !== '' && Number(input.value) <= 0 ? 'Enter a value greater than 0.' : '');
+    if (input.validity.valid) {
+      $('report').value = updateDrMeasurement($('report').value, input.dataset.drMeasurement, input.value, currentSpecies);
+      syncMeasurementInputs();
+    }
+    syncDrClassification(input.dataset.drMeasurement);
+    updateExport();
+    return;
+  }
   if (currentReportType === 'abdominal' && event.target.dataset.adrenal) {
     if (event.target.validity.valid) {
       $('report').value = updateAdrenalMeasurement($('report').value, event.target.dataset.adrenal, event.target.value);
@@ -542,7 +651,7 @@ $('reset').addEventListener('click', () => {
   for (const key of Object.keys(hiddenDrSections)) delete hiddenDrSections[key];
   $('report').value = newReport();
   update();
-  $('weight').focus();
+  (currentReportType === 'echo' ? $('weight') : $('report')).focus();
 });
 
 $('copy').addEventListener('click', async () => {
@@ -561,7 +670,7 @@ $('download').addEventListener('click', () => {
   const link = document.createElement('a');
   link.href = url;
   const name = reportTypes[currentReportType].filename;
-  const weightSuffix = $('weight').value ? `_${$('weight').value}kg` : '';
+  const weightSuffix = currentReportType === 'echo' && $('weight').value ? `_${$('weight').value}kg` : '';
   link.download = `${name}_${currentSpecies}${weightSuffix}.txt`;
   document.body.append(link);
   link.click();

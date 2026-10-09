@@ -157,6 +157,33 @@
     fluoroscopy: { label: 'Fluoroscopy', filename: 'fluoroscopy', lang: 'en', title: 'Fluoroscopy', technique: ['Procedure / positioning', 'Contrast', 'Dynamic assessment / maneuvers', 'Image quality / limitations'] },
   };
 
+  function drMeasurementKeys(species) {
+    return species === 'cat' ? ['VHS', 'VHW'] : ['VHS', 'VLAS'];
+  }
+
+  function drMeasurementSlot(report, key, species) {
+    if (!drMeasurementKeys(species).includes(key)) return null;
+    const sections = [...report.matchAll(/^흉부\r?\n([\s\S]*?)(?=^(?:복부|전지|후지|두부|기타|흉부|DX and DDX\)|-{10,})\r?$|(?![\s\S]))/gm)];
+    if (sections.length !== 1) return null;
+    const section = sections[0];
+    const pattern = new RegExp(`((?:^[ \\t]*-[ \\t]*|,[ \\t]*)${key}[ \\t]*:[ \\t]*)(${numericSlot})(?=[ \\t]*v[ \\t]*(?:,|\\r?$))`, 'gm');
+    const matches = [...section[1].matchAll(pattern)];
+    if (matches.length !== 1) return null;
+    const match = matches[0];
+    return { raw: match[2], index: section.index + section[0].length - section[1].length + match.index + match[1].length };
+  }
+
+  function readDrMeasurements(report, species) {
+    return Object.fromEntries(drMeasurementKeys(species).map(key => [key, drMeasurementSlot(report, key, species)?.raw ?? null]));
+  }
+
+  function updateDrMeasurement(report, key, raw, species) {
+    if (!new RegExp(`^${numericSlot}$`).test(raw) || (raw !== '' && (!Number.isFinite(Number(raw)) || Number(raw) <= 0))) return report;
+    const slot = drMeasurementSlot(report, key, species);
+    if (!slot) return report;
+    return report.slice(0, slot.index) + raw + report.slice(slot.index + slot.raw.length);
+  }
+
   function generateImagingReport(type, species = 'dog') {
     if (type === 'dr') {
       return [
@@ -503,6 +530,9 @@ Range colors use the requested RR <1.2 m/s. The original supplied notes above ar
   }
 
   const api = {
+    drMeasurementKeys,
+    readDrMeasurements,
+    updateDrMeasurement,
     adrenalFields,
     readAdrenalMeasurements,
     updateAdrenalMeasurement,

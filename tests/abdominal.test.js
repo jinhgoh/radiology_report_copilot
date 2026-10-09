@@ -47,6 +47,7 @@ test('all six report modes preserve species drafts, isolate cardiac controls, ex
       setCustomValidity(message) { this.customError = message; },
       checkValidity() {
         const weight = get('weight');
+        if (weight.disabled) return true;
         if (weight.customError) return false;
         if (weight.value === '') return !weight.required;
         return weight.valueAsNumber >= Number(weight.min) && (!weight.max || weight.valueAsNumber <= Number(weight.max));
@@ -78,14 +79,28 @@ test('all six report modes preserve species drafts, isolate cardiac controls, ex
   const editor = get('report');
   const setWeight = value => { get('weight').value = value; get('form').listeners.input({ target: get('weight') }); };
   const edit = value => { editor.value = value; editor.listeners.input(); editor.listeners.blur(); };
+  const checkDrStatuses = (key, cases) => {
+    const original = editor.value;
+    for (const [value, expected] of cases) {
+      const input = get(`dr-${key}`);
+      input.value = value;
+      get('form').listeners.input({ target: input });
+      assert.equal(get(`dr-row-${key}`).dataset.rangeStatus, expected);
+      assert.equal(get(`dr-status-${key}`).textContent, expected ? `(${expected})` : '');
+      assert.equal(get(`dr-status-${key}`).hidden, !expected);
+    }
+    edit(original);
+  };
   edit(editor.value + '\nEcho dog notes');
   const dogEcho = editor.value;
   assert.equal(get('copy').disabled, true, 'Canine echo still requires weight');
+  assert.equal(get('weight').disabled, false);
   types[1].listeners.click();
   assert.equal(editor.value, EchoCore.generateAbdominalReport());
   assert.equal(types[1].attributes['aria-pressed'], 'true');
   assert.equal(sections[0].hidden, true);
   assert.equal(sections[1].hidden, false);
+  assert.equal(get('weight').disabled, true);
   assert.equal(get('measurements').children.length, 1);
   assert.equal(get('evaluations').children.length, 0);
   assert.equal(get('copy').disabled, false, 'Abdominal export accepts blank weight');
@@ -101,7 +116,7 @@ test('all six report modes preserve species drafts, isolate cardiac controls, ex
   edit(abdominal);
   setWeight('50');
   assert.equal(editor.value, abdominal, 'Abdominal prose is never passed through echo calculations');
-  assert.equal(get('copy').disabled, false, 'Abdominal weight has no canine echo maximum');
+  assert.equal(get('copy').disabled, false, 'Abdominal reports ignore retained echo weight');
   setWeight('');
   await get('copy').listeners.click();
   assert.equal(copied, abdominal);
@@ -110,7 +125,7 @@ test('all six report modes preserve species drafts, isolate cardiac controls, ex
   assert.equal(await exported.text(), abdominal);
   assert.deepEqual(Array.from(new Uint8Array(await exported.arrayBuffer()).slice(0, 3)), [239, 187, 191]);
   setWeight('-1');
-  assert.equal(get('copy').disabled, true);
+  assert.equal(get('copy').disabled, false, 'Hidden weight cannot block abdominal export');
   setWeight('');
   species[1].listeners.click();
   assert.equal(editor.value, EchoCore.generateAbdominalReport());
@@ -125,6 +140,7 @@ test('all six report modes preserve species drafts, isolate cardiac controls, ex
   species[0].listeners.click();
   assert.equal(editor.value, dogEcho);
   assert.equal(get('weight').required, true);
+  assert.equal(get('weight').disabled, false);
   assert.equal(get('weight').max, '40');
   types[1].listeners.click();
   assert.equal(editor.value, abdominal);
@@ -153,7 +169,37 @@ test('all six report modes preserve species drafts, isolate cardiac controls, ex
     assert.equal(sections[0].hidden, true);
     assert.equal(sections[1].hidden, true);
     assert.equal(get('imaging-guide').hidden, false);
-    assert.equal(get('measurements').children.length, 0);
+    assert.equal(get('measurements').children.length, type === 'dr' ? 1 : 0);
+    if (type === 'dr') {
+      const card = get('measurements').children[0];
+      assert.deepEqual(Array.from(card.children.slice(0, -1), child => child.textContent), [
+        'Heart size',
+      ]);
+      assert.equal(get('imaging-reference').hidden, false);
+      assert.equal(get('imaging-reference').textContent,
+        'Dog normal ranges\nVHS [vertebral heart scale]: 8.7-10.7v\nICS [intercostal space]: 2.5-3.5\nVLAS [vertebral left atrial score]: < 2.3v\nCTR [Cardio-thoracic ratio]: 0.5-0.66\n\nVHS breed references\nShi-tzu: 8.3-10.7v\nPomeranian: 9.6-11.4v\nPoodle: 9.1-11.1v');
+      assert.equal(get('dr-reference-VHS').textContent,
+        'Dog normal ranges\nVHS [vertebral heart scale]: 8.7-10.7v\nVHS breed references\nShi-tzu: 8.3-10.7v\nPomeranian: 9.6-11.4v\nPoodle: 9.1-11.1v');
+      assert.equal(get('dr-reference-VLAS').textContent, 'Dog normal ranges\nVLAS [vertebral left atrial score]: < 2.3v');
+      checkDrStatuses('VHS', [['8.69', 'low'], ['8.7', 'normal'], ['10.7', 'normal'], ['10.71', 'high'], ['', '']]);
+      checkDrStatuses('VLAS', [['2.29', 'normal'], ['2.3', 'high'], ['2.31', 'high'], ['', '']]);
+      for (const [key, value] of [['VHS', '10.2'], ['VLAS', '2.1']]) {
+        const input = get(`dr-${key}`);
+        assert.equal(input.attributes['aria-describedby'], `dr-status-${key} dr-reference-${key}`);
+        input.value = value;
+        get('form').listeners.input({ target: input });
+      }
+      assert.match(editor.value, /- VHS: 10.2v, VLAS: 2.1v/);
+      edit(editor.value.replace('10.2v', '10.4v'));
+      assert.equal(get('dr-VHS').value, '10.4');
+      edit(editor.value.replace('10.4v', '10.8v'));
+      assert.equal(get('dr-status-VHS').textContent, '(high)');
+      edit(editor.value.replace('10.8v', 'unknown'));
+      assert.equal(get('dr-VHS').disabled, true);
+      assert.equal(get('dr-status-VHS').hidden, true);
+      edit(EchoCore.generateImagingReport('dr'));
+      assert.equal(get('dr-status-VHS').hidden, true);
+    }
     assert.equal(get('evaluations').children.length, 0);
     assert.equal(get('copy').disabled, false);
     const report = editor.value + `\n${type} dog notes\n- LVDd: 2.2 (1-3)\n  > LVIDDN: untouched`;
@@ -162,10 +208,10 @@ test('all six report modes preserve species drafts, isolate cardiac controls, ex
     assert.equal(editor.value, report, 'Non-echo reports bypass cardiac calculations');
     assert.equal(get('download').disabled, false);
     get('download').listeners.click();
-    assert.equal(downloaded, `${type}_dog_50kg.txt`);
+    assert.equal(downloaded, `${type}_dog.txt`);
     assert.equal(await exported.text(), report);
     setWeight('-1');
-    assert.equal(get('download').disabled, true);
+    assert.equal(get('download').disabled, false, 'Hidden weight cannot block imaging export');
     setWeight('');
     await get('copy').listeners.click();
     assert.equal(copied, report);
@@ -174,10 +220,25 @@ test('all six report modes preserve species drafts, isolate cardiac controls, ex
     species[1].listeners.click();
     assert.equal(editor.value, EchoCore.generateImagingReport(type, 'cat'));
     if (type === 'dr') {
+      const card = get('measurements').children[0];
+      assert.deepEqual(Array.from(card.children.slice(0, -1), child => child.textContent), [
+        'Heart size',
+      ]);
+      assert.equal(get('imaging-reference').textContent,
+        'Cat normal ranges\nVHS [vertebral heart score]: 6.8-8.1v\nICS [intercostal space]: 2-2.5\nVHW [vertebral heart width]: 2.9-4.1v');
+      assert.equal(get('dr-reference-VHS').textContent, 'Cat normal ranges\nVHS [vertebral heart score]: 6.8-8.1v');
+      assert.equal(get('dr-reference-VHW').textContent, 'Cat normal ranges\nVHW [vertebral heart width]: 2.9-4.1v');
+      checkDrStatuses('VHS', [['6.79', 'low'], ['6.8', 'normal'], ['8.1', 'normal'], ['8.11', 'high'], ['', '']]);
+      checkDrStatuses('VHW', [['2.89', 'low'], ['2.9', 'normal'], ['4.1', 'normal'], ['4.11', 'high'], ['', '']]);
+      assert.ok(card.children.slice(0, -1).every(child => child.children.length === 0));
       assert.match(editor.value, /- VHS: v, VHW: v/);
       assert.doesNotMatch(editor.value, /VLAS/);
       assert.match(report, /- VHS: v, VLAS: v/);
       assert.doesNotMatch(report, /VHW/);
+      const input = get('dr-VHW');
+      input.value = '3.5';
+      get('form').listeners.input({ target: input });
+      assert.match(editor.value, /- VHS: v, VHW: 3.5v/);
     }
     edit(editor.value + `\n${type} cat notes`);
     imagingDrafts[type] = { dog: report, cat: editor.value };
