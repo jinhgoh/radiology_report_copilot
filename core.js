@@ -273,7 +273,7 @@
 
   function adrenalSection(report) {
     const lines = report.split(/\r?\n/);
-    const starts = lines.flatMap((line, index) => line.trim() === '비장, 내분비 림프절' ? [index] : []);
+    const starts = lines.flatMap((line, index) => line.trim() === '비장, 내분비, 림프절' ? [index] : []);
     if (starts.length !== 1) return null;
     const start = starts[0] + 1;
     let end = start;
@@ -319,7 +319,7 @@
     return section.lines.join(section.newline);
   }
 
-  function generateAbdominalReport() {
+  function generateAbdominalReport({ includeOther = false } = {}) {
     return [
       reportSeparator,
       '복부 초음파',
@@ -329,12 +329,11 @@
       '- 특이소견 확인되지 않음',
       '비뇨기',
       '- 특이소견 확인되지 않음',
-      '비장, 내분비 림프절 ',
+      '비장, 내분비, 림프절 ',
       '- 특이소견 확인되지 않음',
       '생식기',
       '- 특이소견 확인되지 않음',
-      '기타',
-      '- 특이소견 확인되지 않음',
+      ...(includeOther ? ['기타', '- 특이소견 확인되지 않음'] : []),
       '',
       'DX and DDX)',
       '- ',

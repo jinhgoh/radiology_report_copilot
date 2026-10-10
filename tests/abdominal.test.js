@@ -5,13 +5,13 @@ const path = require('node:path');
 const vm = require('node:vm');
 const EchoCore = require('../core');
 
-test('abdominal report reproduces the supplied template exactly', () => {
-  const expected = '복부 초음파\n간담도계\n- 특이소견 확인되지 않음\n소화기\n- 특이소견 확인되지 않음\n비뇨기\n- 특이소견 확인되지 않음\n비장, 내분비 림프절 \n- 특이소견 확인되지 않음\n생식기\n- 특이소견 확인되지 않음\n기타\n- 특이소견 확인되지 않음\n\nDX and DDX)\n- \n\nby GJH';
+test('abdominal report defaults to standard regions and can include Other explicitly', () => {
+  const expected = '복부 초음파\n간담도계\n- 특이소견 확인되지 않음\n소화기\n- 특이소견 확인되지 않음\n비뇨기\n- 특이소견 확인되지 않음\n비장, 내분비, 림프절 \n- 특이소견 확인되지 않음\n생식기\n- 특이소견 확인되지 않음\n\nDX and DDX)\n- \n\nby GJH';
   assert.equal(EchoCore.generateAbdominalReport(), `----------------------------------------------------------\n${expected}\n----------------------------------------------------------`);
 });
 
 test('adrenal updates preserve findings, reject ambiguous lines, and clear optional measurements', () => {
-  const original = EchoCore.generateAbdominalReport().replace('비장, 내분비 림프절 \n- 특이소견 확인되지 않음', '비장, 내분비 림프절 \n- 좌측 부신 전극 및 후극 비후');
+  const original = EchoCore.generateAbdominalReport().replace('비장, 내분비, 림프절 \n- 특이소견 확인되지 않음', '비장, 내분비, 림프절 \n- 좌측 부신 전극 및 후극 비후');
   let report = EchoCore.updateAdrenalMeasurement(original, 'ltCd', '6.50');
   report = EchoCore.updateAdrenalMeasurement(report, 'rtCr', '6.8');
   assert.match(report, /- 좌측 부신 전극 및 후극 비후\n  > Rt\.\) Cr\. = 6\.8mm, Cd = mm\n  > Lt\.\) Cr\. = mm, Cd = 6\.50mm/);
@@ -23,7 +23,7 @@ test('adrenal updates preserve findings, reject ambiguous lines, and clear optio
   const duplicate = report.replace('생식기', '  > Rt.) Cr. = 8mm, Cd = 9mm\n생식기');
   assert.equal(EchoCore.readAdrenalMeasurements(duplicate).rtCr, null);
   assert.equal(EchoCore.updateAdrenalMeasurement(duplicate, 'rtCr', '7'), duplicate);
-  const missing = original.replace('비장, 내분비 림프절', 'Edited heading');
+  const missing = original.replace('비장, 내분비, 림프절', 'Edited heading');
   assert.equal(EchoCore.updateAdrenalMeasurement(missing, 'rtCr', '7'), missing);
   report = EchoCore.updateAdrenalMeasurement(report, 'rtCr', '');
   report = EchoCore.updateAdrenalMeasurement(report, 'ltCd', '');
@@ -39,8 +39,11 @@ test('all six report modes preserve species drafts, isolate cardiac controls, ex
   function element() {
     return {
       value: '', dataset: {}, children: [], listeners: {}, attributes: {}, validity: { valid: true },
+      selectionStart: 0, selectionEnd: 0,
+      setSelectionRange(start, end) { this.selectionStart = start; this.selectionEnd = end; },
       classList: { toggle() {} },
       get valueAsNumber() { return this.value === '' ? NaN : Number(this.value); },
+      get childElementCount() { return this.children.length; },
       set id(value) { this._id = value; nodes.set(value, this); }, get id() { return this._id; },
       append(...children) { this.children.push(...children); }, replaceChildren() { this.children = []; },
       setAttribute(key, value) { this.attributes[key] = value; }, removeAttribute(key) { delete this[key]; },
@@ -67,9 +70,10 @@ test('all six report modes preserve species drafts, isolate cardiac controls, ex
   const types = buttons('reportChoice', ['echo', 'abdominal', 'dr', 'ct', 'mri', 'fluoroscopy']);
   const species = buttons('speciesChoice', ['dog', 'cat']);
   const regions = buttons('drRegion', ['흉부', '복부', '전지', '후지', '두부', '기타']);
+  const abdominalRegions = buttons('abdominalRegion', ['전체', '간담도계', '소화기', '비뇨기', '비장, 내분비, 림프절', '생식기', '기타']);
   const sections = buttons('reportType', ['echo', 'abdominal']);
   Object.assign(document, { body: element(), getElementById: get, createElement: element,
-    querySelectorAll: selector => ({ '[data-dr-region]': regions, '[data-report-choice]': types, '[data-species-choice]': species, '[data-report-type]': sections }[selector] || []) });
+    querySelectorAll: selector => ({ '[data-abdominal-region]': abdominalRegions, '[data-dr-region]': regions, '[data-report-choice]': types, '[data-species-choice]': species, '[data-report-type]': sections }[selector] || []) });
   vm.runInNewContext(fs.readFileSync(path.join(__dirname, '../app.js'), 'utf8'), {
     document, EchoCore, EchoEvaluations: require('../evaluations'), REFERENCE_DATA: require('../reference-data'), Blob,
     navigator: { clipboard: { async writeText(value) { copied = value; } } },
@@ -98,6 +102,13 @@ test('all six report modes preserve species drafts, isolate cardiac controls, ex
   types[1].listeners.click();
   assert.equal(editor.value, EchoCore.generateAbdominalReport());
   assert.equal(types[1].attributes['aria-pressed'], 'true');
+  for (const field of EchoCore.adrenalFields) {
+    const tooltip = get(`adrenal-reference-${field.key}`);
+    assert.match(tooltip.children[0].textContent, /^Dog: 3-6mm\n/);
+    assert.match(tooltip.children[0].textContent, /쿠싱 환자중 23%는 부신크기 정상/);
+    assert.equal(get(`adrenal-${field.key}`).attributes['aria-describedby'], tooltip.id);
+    assert.equal(tooltip.attributes.role, 'tooltip');
+  }
   assert.equal(sections[0].hidden, true);
   assert.equal(sections[1].hidden, false);
   assert.equal(get('weight').disabled, true);
@@ -169,12 +180,16 @@ test('all six report modes preserve species drafts, isolate cardiac controls, ex
     assert.equal(sections[0].hidden, true);
     assert.equal(sections[1].hidden, true);
     assert.equal(get('imaging-guide').hidden, false);
-    assert.equal(get('measurements').children.length, type === 'dr' ? 4 : 0);
+    assert.equal(get('measurements').children.length, type === 'dr' ? 2 : 0);
     if (type === 'dr') {
       const card = get('measurements').children[0];
       assert.deepEqual(Array.from(card.children.slice(0, -1), child => child.textContent), [
-        'Chest',
+        'Heart measurements',
       ]);
+      const additional = get('measurements').children[1];
+      assert.equal(additional.children[0].textContent, 'More measurements');
+      assert.equal(Boolean(additional.open), false);
+      assert.equal(additional.children.length, 5);
       assert.equal(get('imaging-reference').hidden, false);
       assert.equal(get('imaging-reference').textContent,
         'Dog normal ranges\nVHS [vertebral heart scale]: 8.7-10.7v\nICS [intercostal space]: 2.5-3.5\nVLAS [vertebral left atrial score]: < 2.3v\nCTR [Cardio-thoracic ratio]: 0.5-0.66\n\nVHS breed references\nShi-tzu: 8.3-10.7v\nPomeranian: 9.6-11.4v\nPoodle: 9.1-11.1v');
@@ -235,7 +250,7 @@ test('all six report modes preserve species drafts, isolate cardiac controls, ex
     if (type === 'dr') {
       const card = get('measurements').children[0];
       assert.deepEqual(Array.from(card.children.slice(0, -1), child => child.textContent), [
-        'Chest',
+        'Heart measurements',
       ]);
       assert.equal(get('imaging-reference').textContent,
         'Cat normal ranges\nVHS [vertebral heart score]: 6.8-8.1v\nICS [intercostal space]: 2-2.5\nVHW [vertebral heart width]: 2.9-4.1v');
@@ -296,6 +311,19 @@ test('all six report modes preserve species drafts, isolate cardiac controls, ex
   assert.equal(editor.value, allRegions, 'Check all restores edited sections');
   get('dr-check-all').listeners.click();
   assert.equal(editor.value, allRegions, 'Repeated Check all does not duplicate sections');
+  for (const field of EchoCore.drMeasurementFields('dog')) {
+    get('dr-uncheck-all').listeners.click();
+    const input = get('dr-' + field.key);
+    assert.equal(input.disabled, false, field.key);
+    input.value = '2.5';
+    get('form').listeners.input({ target: input });
+    assert.deepEqual(regions.filter(item => item.checked).map(item => item.dataset.drRegion), [field.region]);
+    assert.equal(EchoCore.readDrMeasurements(editor.value, 'dog')[field.key], '2.5');
+    input.value = '';
+    get('form').listeners.input({ target: input });
+    assert.equal(EchoCore.readDrMeasurements(editor.value, 'dog')[field.key], '');
+    assert.ok(regions.find(item => item.dataset.drRegion === field.region).checked);
+  }
   get('reset').listeners.click();
   assert.deepEqual(regions.map(input => input.checked), [true, false, false, false, false, false]);
   for (const button of types.slice(2)) {
@@ -324,4 +352,130 @@ test('all six report modes preserve species drafts, isolate cardiac controls, ex
   types[1].listeners.click();
   assert.equal(get('imaging-guide').hidden, true);
   assert.equal(editor.attributes.lang, 'ko');
+  get('reset').listeners.click();
+  const checkedAbdominal = () => abdominalRegions.filter(input => input.checked).map(input => input.dataset.abdominalRegion);
+  assert.deepEqual(checkedAbdominal(), ['전체']);
+  const toggleAbdominal = (name, checked = true) => {
+    const input = abdominalRegions.find(input => input.dataset.abdominalRegion === name);
+    input.checked = checked;
+    input.listeners.change();
+  };
+  for (const field of EchoCore.adrenalFields) {
+    get('abdominal-uncheck-all').listeners.click();
+    const input = get('adrenal-' + field.key);
+    assert.equal(input.disabled, false);
+    input.value = '6.2';
+    get('form').listeners.input({ target: input });
+    assert.deepEqual(checkedAbdominal(), ['비장, 내분비, 림프절']);
+    assert.equal(EchoCore.readAdrenalMeasurements(editor.value)[field.key], '6.2');
+    input.value = '';
+    get('form').listeners.input({ target: input });
+    assert.ok(checkedAbdominal().includes('비장, 내분비, 림프절'));
+  }
+  get('reset').listeners.click();
+  const fullDefault = EchoCore.generateAbdominalReport({ includeOther: true });
+  toggleAbdominal('기타', false);
+  assert.deepEqual(checkedAbdominal(), ['전체']);
+  assert.doesNotMatch(editor.value, /^기타$/m);
+  const standardDefault = editor.value;
+  toggleAbdominal('전체', false);
+  assert.deepEqual(checkedAbdominal(), []);
+  toggleAbdominal('전체');
+  assert.equal(editor.value, standardDefault, '전체 does not add 기타');
+  toggleAbdominal('기타');
+  assert.deepEqual(checkedAbdominal(), ['전체', '기타']);
+  assert.equal(editor.value, fullDefault);
+  toggleAbdominal('전체', false);
+  assert.deepEqual(checkedAbdominal(), ['기타']);
+  toggleAbdominal('전체');
+  assert.equal(editor.value, fullDefault, '전체 preserves independent 기타');
+  toggleAbdominal('생식기');
+  assert.deepEqual(checkedAbdominal(), ['생식기', '기타']);
+  toggleAbdominal('전체');
+  toggleAbdominal('기타', false);
+  const annotated = EchoCore.updateAdrenalMeasurement(
+    editor.value.replace('간담도계\n', '간담도계\n- Liver notes\n').replace('by GJH', 'by Author\nPatient notes'), 'rtCr', '5.5');
+  edit(annotated);
+  toggleAbdominal('생식기');
+  assert.deepEqual(checkedAbdominal(), ['생식기'], 'One click from 전체 selects only the requested region');
+  assert.match(editor.value, /^생식기$/m);
+  for (const name of ['간담도계', '소화기', '비뇨기', '비장, 내분비, 림프절', '기타', '전체']) {
+    assert.ok(!editor.value.includes(name));
+  }
+  assert.doesNotMatch(editor.value, /비장, 내분비, 림프절|5\.5mm/);
+  assert.equal(get('adrenal-rtCr').disabled, false);
+  const dogWithoutAdrenal = editor.value;
+  species[1].listeners.click();
+  assert.deepEqual(checkedAbdominal(), ['전체']);
+  toggleAbdominal('생식기');
+  toggleAbdominal('전체');
+  assert.doesNotMatch(editor.value, /5\.5mm/);
+  species[0].listeners.click();
+  assert.equal(editor.value, dogWithoutAdrenal);
+  assert.deepEqual(checkedAbdominal(), ['생식기']);
+  types[2].listeners.click();
+  types[1].listeners.click();
+  assert.equal(editor.value, dogWithoutAdrenal);
+  toggleAbdominal('비장, 내분비, 림프절');
+  assert.deepEqual(checkedAbdominal(), ['비장, 내분비, 림프절', '생식기'], 'Specific regions support multi-selection');
+  assert.equal(get('adrenal-rtCr').value, '5.5');
+  toggleAbdominal('생식기', false);
+  assert.deepEqual(checkedAbdominal(), ['비장, 내분비, 림프절']);
+  toggleAbdominal('전체');
+  assert.equal(editor.value, annotated);
+  assert.equal(get('adrenal-rtCr').value, '5.5');
+  assert.equal(get('adrenal-rtCr').disabled, false);
+  get('abdominal-uncheck-all').listeners.click();
+  assert.ok(abdominalRegions.every(input => !input.checked));
+  assert.doesNotMatch(editor.value, /Liver notes|5\.5mm/);
+  assert.match(editor.value, /DX and DDX\)/);
+  assert.match(editor.value, /by Author\nPatient notes/);
+  await get('copy').listeners.click();
+  assert.equal(copied, editor.value);
+  get('abdominal-check-all').listeners.click();
+  const annotatedWithOther = annotated.replace('\n\nDX and DDX)', '\n기타\n- 특이소견 확인되지 않음\n\nDX and DDX)');
+  assert.equal(editor.value, annotatedWithOther);
+  assert.deepEqual(checkedAbdominal(), ['전체', '기타']);
+  get('abdominal-check-all').listeners.click();
+  assert.equal(editor.value, annotatedWithOther, 'Repeated Check all must not duplicate sections');
+  toggleAbdominal('기타', false);
+  for (const region of abdominalRegions.slice(1).filter(input => input.dataset.abdominalRegion !== '기타')) {
+    toggleAbdominal('전체');
+    region.checked = true;
+    region.listeners.change();
+    assert.deepEqual(abdominalRegions.map(input => input.checked), abdominalRegions.map(input => input === region));
+    assert.ok(editor.value.includes(region.dataset.abdominalRegion));
+    assert.match(editor.value, /\n\nDX and DDX\)/, 'Each individual region retains a blank line before diagnosis');
+  }
+  get('abdominal-check-all').listeners.click();
+  assert.equal(editor.value, annotatedWithOther);
+  edit(annotated.replace('소화기\n- 특이소견 확인되지 않음\n', ''));
+  assert.deepEqual(checkedAbdominal(), ['간담도계', '비뇨기', '비장, 내분비, 림프절', '생식기'], 'Checkboxes track direct report edits');
+  toggleAbdominal('소화기');
+  assert.equal(editor.value, annotated);
+  edit(annotated.replace(/\n/g, '\r\n'));
+  toggleAbdominal('간담도계');
+  toggleAbdominal('전체');
+  assert.equal(editor.value, annotated.replace(/\n/g, '\r\n'));
+  edit(annotated.replace('소화기\n', '소화기\n소화기\n'));
+  const duplicate = editor.value;
+  toggleAbdominal('소화기');
+  assert.equal(editor.value, duplicate, 'Ambiguous headings must not remove prose');
+  assert.match(get('feedback').textContent, /duplicate/);
+  edit(annotated);
+  get('abdominal-uncheck-all').listeners.click();
+  get('reset').listeners.click();
+  assert.deepEqual(checkedAbdominal(), ['전체']);
+  get('abdominal-uncheck-all').listeners.click();
+  get('abdominal-check-all').listeners.click();
+  assert.equal(editor.value, EchoCore.generateAbdominalReport({ includeOther: true }), 'New patient clears saved sections');
+  get('abdominal-uncheck-all').listeners.click();
+  toggleAbdominal('소화기');
+  assert.equal(editor.value, '----------------------------------------------------------\n복부 초음파\n소화기\n- 특이소견 확인되지 않음\n\nDX and DDX)\n- \n\nby GJH\n----------------------------------------------------------');
+  edit(editor.value.replace('\n\nDX and DDX)', '\nDX and DDX)'));
+  assert.match(editor.value, /\n\nDX and DDX\)/);
+  edit(editor.value.replace(/\n/g, '\r\n'));
+  toggleAbdominal('기타');
+  toggleAbdominal('기타', false);
+  assert.match(editor.value, /\r\n\r\nDX and DDX\)/);
 });

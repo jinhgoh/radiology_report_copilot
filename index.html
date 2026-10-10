@@ -14,28 +14,42 @@
 </head>
 <body>
   <main>
+    <form id="form" autocomplete="off">
+    <div class="report-toolbar">
     <div class="report-type-toggle species-toggle" role="group" aria-label="Report type">
-      <button type="button" data-report-choice="echo" aria-pressed="true">Echocardiography</button>
-      <button type="button" data-report-choice="abdominal" aria-pressed="false">Abdominal ultrasound</button>
+      <button type="button" data-report-choice="echo" aria-pressed="true">Echo</button>
+      <button type="button" data-report-choice="abdominal" aria-pressed="false">Abdo-US</button>
       <button type="button" data-report-choice="dr" aria-pressed="false">DR</button>
       <button type="button" data-report-choice="ct" aria-pressed="false">CT</button>
       <button type="button" data-report-choice="mri" aria-pressed="false">MRI</button>
-      <button type="button" data-report-choice="fluoroscopy" aria-pressed="false">Fluoroscopy</button>
+      <button type="button" data-report-choice="fluoroscopy" aria-pressed="false">C-arm</button>
+    </div>
+      <input type="hidden" id="species" value="dog">
+      <div class="species-toggle" role="group" aria-label="Species"><button type="button" data-species-choice="dog" aria-pressed="true">Dog</button><button type="button" data-species-choice="cat" aria-pressed="false">Cat</button></div>
+      <div class="toolbar-weight help" data-report-type="echo" role="group" aria-label="Patient information">
+        <label for="weight">BW (kg)</label><input id="weight" type="number" min="0.5" max="40" step="any" placeholder="e.g. 8.6" required aria-describedby="weight-status weight-policy">
+        <button type="button" class="help-button" aria-label="Weight reference help" aria-describedby="weight-status weight-policy">i</button>
+        <span class="help-tooltip" role="tooltip"><span id="weight-status" aria-live="polite">Supported range: 0.5–40 kg.</span><span id="weight-policy">Weights between table entries use the nearest row. Ties use the lower weight. Values are not interpolated.</span></span>
+      </div>
+      <button type="button" id="reset" class="text-button">New patient</button>
+      <button id="copy" type="button" disabled>Copy report</button>
     </div>
     <div class="workspace">
-      <form id="form" autocomplete="off">
-        <div class="section-title patient-controls"><input type="hidden" id="species" value="dog"><div class="species-toggle" role="group" aria-label="Species"><button type="button" data-species-choice="dog" aria-pressed="true">Dog</button><button type="button" data-species-choice="cat" aria-pressed="false">Cat</button></div><button type="button" id="reset" class="text-button">New patient</button></div>
-        <section class="card" data-report-type="echo"><h2>Patient information <span class="help"><button type="button" class="help-button" aria-label="Weight reference help" aria-describedby="weight-policy">i</button><span id="weight-policy" class="help-tooltip" role="tooltip">Weights between table entries use the nearest row. Ties use the lower weight. Values are not interpolated.</span></span></h2>
-          <label>Weight (kg)<input id="weight" type="number" min="0.5" max="40" step="any" placeholder="e.g. 8.6" required></label>
-          <p id="weight-status" class="notice" aria-live="polite">Enter a weight to display reference ranges. Supported range: 0.5–40 kg.</p>
-        </section>
-        <section class="exam-guide section-title" data-report-type="abdominal" hidden>
-          <h2>Abdominal ultrasound</h2>
-          <span class="help"><button type="button" class="help-button" aria-label="Abdominal ultrasound instructions" aria-describedby="abdominal-guide-help">i</button><span id="abdominal-guide-help" class="help-tooltip" role="tooltip"><span>Edit the organ findings, diagnoses, and author directly in Report preview. The supplied Korean template starts each organ section with “특이소견 확인되지 않음”; review and replace these statements for the patient.</span><span class="guide-draft-help">Switching report type or species keeps a separate draft for each combination until New patient is selected or the app closes.</span></span></span>
+      <div class="editor-panel">
+        <section class="card" data-report-type="abdominal" hidden>
+          <div class="section-title"><h2>Study regions <span class="help"><button type="button" class="help-button" aria-label="Abdominal study regions help" aria-describedby="abdominal-regions-help">i</button><span id="abdominal-regions-help" class="help-tooltip" role="tooltip">전체 includes the five standard regions and is selected by default. 기타 starts unchecked, is independent and can be selected alongside 전체. Select an individual standard region to switch from 전체 to that region, then select additional regions as needed. Check all includes 기타; Uncheck all clears every region. Excluded findings and measurements are kept separately for each species until New patient is selected. Edit organ findings, diagnoses, and author directly in the report. Review the default normal findings for each patient.</span></span></h2><div class="finding-actions"><button type="button" id="abdominal-check-all" class="text-button">Check all</button><button type="button" id="abdominal-uncheck-all" class="text-button">Uncheck all</button></div></div>
+          <div class="dr-region-options" role="group" aria-label="Abdominal ultrasound study regions">
+            <label class="finding-option" lang="ko"><input type="checkbox" data-abdominal-region="전체" checked><span>전체</span></label>
+            <label class="finding-option" lang="ko"><input type="checkbox" data-abdominal-region="간담도계"><span>간담도계</span></label>
+            <label class="finding-option" lang="ko"><input type="checkbox" data-abdominal-region="소화기"><span>소화기</span></label>
+            <label class="finding-option" lang="ko"><input type="checkbox" data-abdominal-region="비뇨기"><span>비뇨기</span></label>
+            <label class="finding-option" lang="ko"><input type="checkbox" data-abdominal-region="비장, 내분비, 림프절"><span>비장, 내분비, 림프절</span></label>
+            <label class="finding-option" lang="ko"><input type="checkbox" data-abdominal-region="생식기"><span>생식기</span></label>
+            <label class="finding-option" lang="ko"><input type="checkbox" data-abdominal-region="기타"><span>기타</span></label>
+          </div>
         </section>
         <section class="card" data-report-type="dr" hidden>
-          <div class="section-title"><h2>Study regions</h2><div class="finding-actions"><button type="button" id="dr-check-all" class="text-button">Check all</button><button type="button" id="dr-uncheck-all" class="text-button">Uncheck all</button></div></div>
-          <p class="hint">Select the regions to include in the report. Unchecked sections are kept until New patient is selected.</p>
+          <div class="section-title"><h2>Study regions <span class="help"><button type="button" class="help-button" aria-label="DR study regions help" aria-describedby="dr-regions-help">i</button><span id="dr-regions-help" class="help-tooltip" role="tooltip">Select regions to include in the report. Unchecked sections are kept until New patient is selected.</span></span></h2><div class="finding-actions"><button type="button" id="dr-check-all" class="text-button">Check all</button><button type="button" id="dr-uncheck-all" class="text-button">Uncheck all</button></div></div>
           <div class="dr-region-options" role="group" aria-label="DR study regions">
             <label class="finding-option" lang="ko"><input type="checkbox" data-dr-region="흉부" checked><span>흉부</span></label>
             <label class="finding-option" lang="ko"><input type="checkbox" data-dr-region="복부"><span>복부</span></label>
@@ -71,20 +85,19 @@
         <h2 class="measurement-title">Measurements <span class="help"><button type="button" class="help-button" aria-label="Measurements help" aria-describedby="measurements-help">i</button><span id="measurements-help" class="help-tooltip" role="tooltip">Enter measurements below or edit them in the preview. Keep template labels and units to synchronize values. Blank fields are optional.</span></span></h2>
         </div>
         <div id="measurements"></div>
-        <section class="card evaluation-panel" data-report-type="echo" aria-labelledby="evaluation-title">
-          <h2 id="evaluation-title">Clinical evaluation</h2>
-          <p class="hint">Updates from entered measurements. Expand a result to see criteria, missing inputs, and source limitations. Findings and diagnoses in the report remain under your control.</p>
+        <details class="card evaluation-panel" data-report-type="echo" aria-labelledby="evaluation-title" open>
+          <summary><h2 id="evaluation-title">Clinical evaluation <span class="help"><button type="button" class="help-button" aria-label="Clinical evaluation help" aria-describedby="evaluation-help">i</button><span id="evaluation-help" class="help-tooltip" role="tooltip">Results update from entered measurements. Expand Criteria and interpretation for methods and source limitations. Edit findings and diagnoses directly in the report.</span></span></h2></summary>
           <div id="evaluations"></div>
-        </section>
+        </details>
         <div class="app-options" role="group" aria-label="App options">
           <label id="always-on-top-option" hidden><input id="always-on-top" type="checkbox">Always on top</label>
           <button id="about" type="button" class="text-button" aria-haspopup="dialog" aria-controls="about-dialog">About</button>
         </div>
-      </form>
-      <aside><section class="card preview"><div class="section-title"><div><p class="eyebrow">REPORT</p><h2>Report preview <span class="help"><button type="button" class="help-button" aria-label="Report preview help" aria-describedby="preview-help">i</button><span id="preview-help" class="help-tooltip" role="tooltip">Use the measurement inputs or edit values directly below. Edit findings, diagnoses, and author in the preview. Weight changes update reference ranges in the template without replacing your notes. Choose mm (default) or cm for M-mode measurement inputs. Switching units converts M-mode inputs, report measurements, and reference ranges together; FS remains in %. LVIDDN is calculated using the equivalent value in cm.</span></span></h2></div><span id="reference-badge" class="badge">No weight entered</span></div><textarea id="report" lang="ko" aria-label="Editable echocardiography report" spellcheck="false"></textarea><div class="actions"><button id="copy" type="button" disabled>Copy report</button><button id="download" type="button" class="secondary" disabled>Save TXT</button></div><p id="feedback" role="status"></p><details data-report-type="echo"><summary>References and methodology</summary><p>Cats use fixed reference ranges from the supplied template at all weights. Dogs use the 0.5–40 kg table in Canine_Mmode_Refer.docx. Malformed or negative ranges are marked “Check source”.</p><p id="source-issues"></p><p data-species="dog">LVIDDN = LVDd / weight<sup>0.294</sup>. Calculated from the LVDd line when you leave the editor or change weight. Keep the LVDd and LVIDDN labels to use this automation.</p><p>Enter clinical findings and diagnoses manually. Entries are not sent to a server or saved in browser storage.</p></details></section></aside>
+      </div>
+      <aside><section class="card preview"><textarea id="report" lang="ko" aria-label="Editable echocardiography report" spellcheck="false"></textarea><div class="actions"><span class="help"><button type="button" class="help-button" aria-label="Report preview help" aria-describedby="preview-help">i</button><span id="preview-help" class="help-tooltip" role="tooltip">Use the measurement inputs or edit values directly in the report. Edit findings, diagnoses, and author in the preview. Weight changes update reference ranges in the template without replacing your notes. Choose mm (default) or cm for M-mode measurement inputs. Switching units converts M-mode inputs, report measurements, and reference ranges together; FS remains in %. LVIDDN is calculated using the equivalent value in cm.</span></span><span id="reference-badge" class="badge">No weight entered</span><button id="download" type="button" class="secondary" disabled>Save TXT</button></div><p id="feedback" role="status"></p><details data-report-type="echo"><summary>References and methodology</summary><p>Cats use fixed reference ranges from the supplied template at all weights. Dogs use the 0.5–40 kg table in Canine_Mmode_Refer.docx. Malformed or negative ranges are marked “Check source”.</p><p id="source-issues"></p><p data-species="dog">LVIDDN = LVDd / weight<sup>0.294</sup>. Calculated from the LVDd line when you leave the editor or change weight. Keep the LVDd and LVIDDN labels to use this automation.</p><p>Enter clinical findings and diagnoses manually. Entries are not sent to a server or saved in browser storage.</p></details></section></aside>
     </div>
+    </form>
   </main>
-  <footer>Radiology Report Copilot · Echocardiography · Abdominal ultrasound · DR · CT · MRI · Fluoroscopy</footer>
   <dialog id="about-dialog" aria-labelledby="about-title">
     <h2 id="about-title">Radiology Report Copilot</h2>
     <p>Created by Jinhyong Goh.</p>
