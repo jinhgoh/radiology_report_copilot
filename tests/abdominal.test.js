@@ -199,6 +199,19 @@ test('all six report modes preserve species drafts, isolate cardiac controls, ex
       assert.equal(get('dr-status-VHS').hidden, true);
       edit(EchoCore.generateImagingReport('dr'));
       assert.equal(get('dr-status-VHS').hidden, true);
+      const optional = get('dr-PA4');
+      assert.equal(optional.disabled, false);
+      assert.ok(!editor.value.includes('PA / proximal 1/3 4th rib width'));
+      optional.value = '0.8';
+      get('form').listeners.input({ target: optional });
+      assert.ok(editor.value.includes('- PA / proximal 1/3 4th rib width: 0.8'));
+      edit(editor.value.replace('width: 0.8', 'width: 0.9'));
+      assert.equal(optional.value, '0.9');
+      optional.value = '';
+      get('form').listeners.input({ target: optional });
+      assert.ok(!editor.value.includes('PA / proximal 1/3 4th rib width'));
+      assert.equal(optional.disabled, false);
+      assert.match(editor.value, /- VHS: v, VLAS: v/);
     }
     assert.equal(get('evaluations').children.length, 0);
     assert.equal(get('copy').disabled, false);

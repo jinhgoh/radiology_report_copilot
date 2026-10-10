@@ -30,7 +30,8 @@ input[readonly]{background:#edf3ef;color:#497c65}
 #measurements [data-range-status="high"],#measurements [data-range-status="high"] input{color:#bd2525}
 #measurements [data-severity="severe"]>.measurement-reference,#measurements [data-severity="severe"]>.measurement-status,#measurements [data-severity="severe"]>input{font-weight:700;text-decoration:underline;text-underline-offset:2px}
 @media(max-width:500px){#measurements label.has-classification{grid-template-columns:minmax(0,1fr) auto 60px}}
-.measurement-reference{position:relative;cursor:help}
+.measurement-reference{position:relative}
+#measurements .measurement-tooltip{pointer-events:none}
 #measurements .measurement-tooltip{display:none;position:absolute;z-index:20;top:100%;left:0;width:260px;max-width:calc(100vw - 72px);padding:10px 12px;border:1px solid #d7e1dd;border-radius:8px;background:#fff;color:#435e54;box-shadow:0 4px 16px #18363424;font-size:12px;font-weight:400;line-height:1.5;white-space:pre-line;text-decoration:none}
 #measurements .measurement-reference:hover .measurement-tooltip,#measurements label:focus-within .measurement-tooltip,#measurements .dr-heart-measurement:hover .measurement-tooltip{display:block}
 #measurements .measurement-reference.dismissed .measurement-tooltip{display:none}

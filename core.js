@@ -188,9 +188,7 @@
   }
 
   function generateDrSection(region, species) {
-    const fields = drMeasurementFields(species).filter(field => field.region === region);
-    const lines = fields.filter(field => !['VHS', 'VLAS', 'VHW'].includes(field.key))
-      .map(field => `- ${field.label}: ${field.unit === 'ratio' ? '' : field.unit}`);
+    const lines = [];
     if (region === '흉부') lines.unshift(species === 'cat' ? '- VHS: v, VHW: v' : '- VHS: v, VLAS: v');
     return [region, ...lines, '- ', '', ''].join('\n');
   }
@@ -203,6 +201,16 @@
     const section = sections[0];
     const label = field.label.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
     const unit = field.unit === 'ratio' ? '' : field.unit;
+    const sectionStart = section.index + section[0].length - section[1].length;
+    if (!['VHS', 'VLAS', 'VHW'].includes(key)) {
+      const mentions = [...section[1].matchAll(new RegExp(label, 'g'))];
+      if (!mentions.length) return { raw: '', index: sectionStart, insert: true, field };
+      const lines = [...section[1].matchAll(new RegExp(`^[ \\t]*-[ \\t]*${label}[ \\t]*:[ \\t]*(${numericSlot})[ \\t]*${unit}[ \\t]*(?:\\r?\\n|$)`, 'gm'))];
+      if (mentions.length !== 1 || lines.length !== 1) return null;
+      const line = lines[0];
+      return { raw: line[1], index: sectionStart + line.index, length: line[0].length, field,
+        newline: line[0].endsWith('\r\n') ? '\r\n' : line[0].endsWith('\n') ? '\n' : '' };
+    }
     const pattern = new RegExp(`((?:^[ \\t]*-[ \\t]*|,[ \\t]*)${label}[ \\t]*:[ \\t]*)(${numericSlot})(?=[ \\t]*${unit}[ \\t]*(?:,|\\r?$))`, 'gm');
     const matches = [...section[1].matchAll(pattern)];
     if (matches.length !== 1) return null;
@@ -218,6 +226,12 @@
     if (!new RegExp(`^${numericSlot}$`).test(raw) || (raw !== '' && (!Number.isFinite(Number(raw)) || Number(raw) <= 0))) return report;
     const slot = drMeasurementSlot(report, key, species);
     if (!slot) return report;
+    if (slot.field) {
+      if (slot.insert && raw === '') return report;
+      const newline = slot.insert ? (report.includes('\r\n') ? '\r\n' : '\n') : slot.newline;
+      const line = raw === '' ? '' : `- ${slot.field.label}: ${raw}${slot.field.unit === 'ratio' ? '' : slot.field.unit}${newline}`;
+      return report.slice(0, slot.index) + line + report.slice(slot.index + (slot.length ?? 0));
+    }
     return report.slice(0, slot.index) + raw + report.slice(slot.index + slot.raw.length);
   }
 
