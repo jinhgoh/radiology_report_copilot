@@ -189,7 +189,7 @@
 
   function generateDrSection(region, species) {
     const lines = [];
-    if (region === '흉부') lines.unshift(species === 'cat' ? '- VHS: v, VHW: v' : '- VHS: v, VLAS: v');
+    if (region === '흉부') lines.push('- 심음영 크기', species === 'cat' ? '  > VHS: v, VHW: v' : '  > VHS: v, VLAS: v');
     return [region, ...lines, '- ', '', ''].join('\n');
   }
 
@@ -211,7 +211,7 @@
       return { raw: line[1], index: sectionStart + line.index, length: line[0].length, field,
         newline: line[0].endsWith('\r\n') ? '\r\n' : line[0].endsWith('\n') ? '\n' : '' };
     }
-    const pattern = new RegExp(`((?:^[ \\t]*-[ \\t]*|,[ \\t]*)${label}[ \\t]*:[ \\t]*)(${numericSlot})(?=[ \\t]*${unit}[ \\t]*(?:,|\\r?$))`, 'gm');
+    const pattern = new RegExp(`((?:^[ \\t]*[->][ \\t]*|,[ \\t]*)${label}[ \\t]*:[ \\t]*)(${numericSlot})(?=[ \\t]*${unit}[ \\t]*(?:,|\\r?$))`, 'gm');
     const matches = [...section[1].matchAll(pattern)];
     if (matches.length !== 1) return null;
     const match = matches[0];
@@ -316,7 +316,12 @@
         section.lines.splice(index, 0, text);
       }
     }
-    return section.lines.join(section.newline);
+    const updated = adrenalSection(section.lines.join(section.newline));
+    const heading = updated.lines.findIndex((text, index) => index >= updated.start && index < updated.end && text.trim() === '- 부신 크기');
+    const firstMeasurement = updated.lines.findIndex((text, index) => index >= updated.start && index < updated.end && /^[ \t]*>[ \t]*(?:Rt|Lt)\.\)/.test(text));
+    if (firstMeasurement >= 0 && heading < 0) updated.lines.splice(firstMeasurement, 0, '- 부신 크기');
+    else if (firstMeasurement < 0 && heading >= 0 && !/^[ \t]*>/.test(updated.lines[heading + 1] || '')) updated.lines.splice(heading, 1);
+    return updated.lines.join(updated.newline);
   }
 
   function generateAbdominalReport({ includeOther = false } = {}) {

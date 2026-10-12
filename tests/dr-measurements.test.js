@@ -22,6 +22,10 @@ for (const [species, other] of [['dog', 'VLAS'], ['cat', 'VHW']]) {
     }
   });
   test(`${species} DR measurements preserve prose, units, and line endings`, () => {
+    const template = generateImagingReport('dr', species);
+    assert.equal(template, `${'-'.repeat(58)}\n방사선 검사\n흉부\n- 심음영 크기\n  > VHS: v, ${other}: v\n- \n\nDX and DDX)\n- \n\nby GJH\n${'-'.repeat(58)}`);
+    const legacy = template.replace('- 심음영 크기\n  > VHS:', '- VHS:');
+    assert.equal(readDrMeasurements(updateDrMeasurement(legacy, 'VHS', '9.5', species), species).VHS, '9.5');
     const original = generateImagingReport('dr', species).replace('- \n', '- Clinical note\n').replace(/\n/g, '\r\n');
     let report = updateDrMeasurement(original, 'VHS', '9.50', species);
     report = updateDrMeasurement(report, other, '2.1', species);

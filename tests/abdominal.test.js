@@ -14,7 +14,7 @@ test('adrenal updates preserve findings, reject ambiguous lines, and clear optio
   const original = EchoCore.generateAbdominalReport().replace('비장, 내분비, 림프절 \n- 특이소견 확인되지 않음', '비장, 내분비, 림프절 \n- 좌측 부신 전극 및 후극 비후');
   let report = EchoCore.updateAdrenalMeasurement(original, 'ltCd', '6.50');
   report = EchoCore.updateAdrenalMeasurement(report, 'rtCr', '6.8');
-  assert.match(report, /- 좌측 부신 전극 및 후극 비후\n  > Rt\.\) Cr\. = 6\.8mm, Cd = mm\n  > Lt\.\) Cr\. = mm, Cd = 6\.50mm/);
+  assert.match(report, /- 좌측 부신 전극 및 후극 비후\n- 부신 크기\n  > Rt\.\) Cr\. = 6\.8mm, Cd = mm\n  > Lt\.\) Cr\. = mm, Cd = 6\.50mm/);
   assert.equal(EchoCore.readAdrenalMeasurements(report).ltCd, '6.50');
   assert.equal(EchoCore.updateAdrenalMeasurement(report, 'rtCr', '-2'), report);
   const malformed = report.replace('6.8mm', 'unknown');
@@ -30,6 +30,19 @@ test('adrenal updates preserve findings, reject ambiguous lines, and clear optio
   assert.equal(report, original);
   const crlf = EchoCore.updateAdrenalMeasurement(original.replace(/\n/g, '\r\n'), 'rtCr', '6.8');
   assert.equal(crlf.replace(/\r\n/g, '' ).includes('\n'), false);
+});
+
+test('ADG entries add one size heading and clearing all values restores the findings', () => {
+  for (const newline of ['\n', '\r\n']) {
+    const original = EchoCore.generateAbdominalReport().replace(/\n/g, newline);
+    let report = original;
+    for (const key of ['ltCd', 'rtCd', 'ltCr', 'rtCr']) report = EchoCore.updateAdrenalMeasurement(report, key, '1');
+    const expected = ['비장, 내분비, 림프절 ', '- 특이소견 확인되지 않음', '- 부신 크기', '  > Rt.) Cr. = 1mm, Cd = 1mm', '  > Lt.) Cr. = 1mm, Cd = 1mm', '생식기'].join(newline);
+    assert.ok(report.includes(expected));
+    assert.deepEqual(EchoCore.readAdrenalMeasurements(report), { rtCr: '1', rtCd: '1', ltCr: '1', ltCd: '1' });
+    for (const key of ['rtCr', 'rtCd', 'ltCr', 'ltCd']) report = EchoCore.updateAdrenalMeasurement(report, key, '');
+    assert.equal(report, original);
+  }
 });
 
 test('all six report modes preserve species drafts, isolate cardiac controls, export and reset', async () => {
@@ -204,7 +217,7 @@ test('all six report modes preserve species drafts, isolate cardiac controls, ex
         input.value = value;
         get('form').listeners.input({ target: input });
       }
-      assert.match(editor.value, /- VHS: 10.2v, VLAS: 2.1v/);
+      assert.match(editor.value, /  > VHS: 10.2v, VLAS: 2.1v/);
       edit(editor.value.replace('10.2v', '10.4v'));
       assert.equal(get('dr-VHS').value, '10.4');
       edit(editor.value.replace('10.4v', '10.8v'));
@@ -226,7 +239,7 @@ test('all six report modes preserve species drafts, isolate cardiac controls, ex
       get('form').listeners.input({ target: optional });
       assert.ok(!editor.value.includes('PA / proximal 1/3 4th rib width'));
       assert.equal(optional.disabled, false);
-      assert.match(editor.value, /- VHS: v, VLAS: v/);
+      assert.match(editor.value, /  > VHS: v, VLAS: v/);
     }
     assert.equal(get('evaluations').children.length, 0);
     assert.equal(get('copy').disabled, false);
@@ -259,14 +272,14 @@ test('all six report modes preserve species drafts, isolate cardiac controls, ex
       checkDrStatuses('VHS', [['6.79', 'low'], ['6.8', 'normal'], ['8.1', 'normal'], ['8.11', 'high'], ['', '']]);
       checkDrStatuses('VHW', [['2.89', 'low'], ['2.9', 'normal'], ['4.1', 'normal'], ['4.11', 'high'], ['', '']]);
       assert.ok(card.children.slice(0, -1).every(child => child.children.length === 0));
-      assert.match(editor.value, /- VHS: v, VHW: v/);
+      assert.match(editor.value, /  > VHS: v, VHW: v/);
       assert.doesNotMatch(editor.value, /VLAS/);
-      assert.match(report, /- VHS: v, VLAS: v/);
+      assert.match(report, /  > VHS: v, VLAS: v/);
       assert.doesNotMatch(report, /VHW/);
       const input = get('dr-VHW');
       input.value = '3.5';
       get('form').listeners.input({ target: input });
-      assert.match(editor.value, /- VHS: v, VHW: 3.5v/);
+      assert.match(editor.value, /  > VHS: v, VHW: 3.5v/);
     }
     edit(editor.value + `\n${type} cat notes`);
     imagingDrafts[type] = { dog: report, cat: editor.value };
