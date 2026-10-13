@@ -7,15 +7,15 @@ if not exist "%APP_CSC%" (
     popd
     exit /b 1
 )
-for %%F in (Microsoft.Web.WebView2.Core.dll Microsoft.Web.WebView2.WinForms.dll WebView2Loader.dll RadiologyReportCopilot.ico) do (
+for %%F in (Microsoft.Web.WebView2.Core.dll Microsoft.Web.WebView2.WinForms.dll WebView2Loader.dll assets/RadiologyReportCopilot.ico) do (
     if not exist "%%F" (
-        echo Missing %%F. Keep the WebView2 SDK DLLs and icon beside build.bat.
+        echo Missing %%F. Keep the WebView2 SDK DLLs beside build.bat and the icon in assets.
         popd
         exit /b 1
     )
 )
 "%APP_CSC%" /nologo /target:winexe /platform:x64 /win32manifest:app.manifest ^
-    /out:RadiologyReportCopilot.next.exe /win32icon:RadiologyReportCopilot.ico ^
+    /out:RadiologyReportCopilot.next.exe /win32icon:assets/RadiologyReportCopilot.ico ^
     /reference:Microsoft.Web.WebView2.Core.dll ^
     /reference:Microsoft.Web.WebView2.WinForms.dll ^
     /reference:System.Windows.Forms.dll ^

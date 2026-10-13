@@ -26,9 +26,15 @@ namespace RadiologyReportCopilot
     {
         private const string AppUrl = "https://radiology-report-copilot.example/index.html";
         private readonly WebView2 browser = new WebView2();
+        private readonly string windowSettingsPath;
+        private readonly bool hasSavedWindowSize;
+        private FormWindowState lastVisibleState = FormWindowState.Normal;
 
-        public ReportWindow()
+        public ReportWindow() : this(Path.Combine(AppDomain.CurrentDomain.BaseDirectory, ".window-size")) { }
+
+        internal ReportWindow(string settingsPath)
         {
+            windowSettingsPath = settingsPath;
             Text = "Radiology Report Copilot";
             Icon = Icon.ExtractAssociatedIcon(Application.ExecutablePath);
             AutoScaleMode = AutoScaleMode.Dpi;
@@ -36,9 +42,57 @@ namespace RadiologyReportCopilot
             MinimumSize = new Size(720, 600);
             StartPosition = FormStartPosition.CenterScreen;
             WindowState = FormWindowState.Normal;
+            hasSavedWindowSize = RestoreWindowSize();
+            Resize += delegate
+            {
+                if (WindowState != FormWindowState.Minimized) lastVisibleState = WindowState;
+            };
             browser.Dock = DockStyle.Fill;
             Controls.Add(browser);
             Shown += InitializeBrowser;
+        }
+
+        private bool RestoreWindowSize()
+        {
+            try
+            {
+                string[] settings = File.ReadAllLines(windowSettingsPath);
+                int width, height;
+                bool maximized;
+                if (settings.Length != 3 || !int.TryParse(settings[0], out width) ||
+                    !int.TryParse(settings[1], out height) || !bool.TryParse(settings[2], out maximized) ||
+                    width <= 0 || height <= 0) return false;
+                Rectangle available = Screen.FromControl(this).WorkingArea;
+                MinimumSize = new Size(Math.Min(720, available.Width), Math.Min(600, available.Height));
+                Size = new Size(Math.Min(Math.Max(width, MinimumSize.Width), available.Width),
+                    Math.Min(Math.Max(height, MinimumSize.Height), available.Height));
+                lastVisibleState = maximized ? FormWindowState.Maximized : FormWindowState.Normal;
+                WindowState = lastVisibleState;
+                return true;
+            }
+            catch (IOException) { return false; }
+            catch (UnauthorizedAccessException) { return false; }
+        }
+
+        private void SaveWindowSize()
+        {
+            Size normalSize = WindowState == FormWindowState.Normal ? Size : RestoreBounds.Size;
+            if (normalSize.Width <= 0 || normalSize.Height <= 0) return;
+            try
+            {
+                File.WriteAllLines(windowSettingsPath, new string[] {
+                    normalSize.Width.ToString(), normalSize.Height.ToString(),
+                    (lastVisibleState == FormWindowState.Maximized).ToString()
+                });
+            }
+            catch (IOException) { /* A settings write failure must not prevent closing. */ }
+            catch (UnauthorizedAccessException) { /* Read-only folders keep the default launch behavior. */ }
+        }
+
+        protected override void OnFormClosing(FormClosingEventArgs args)
+        {
+            base.OnFormClosing(args);
+            if (!args.Cancel) SaveWindowSize();
         }
 
         private async void InitializeBrowser(object sender, EventArgs args)
@@ -86,7 +140,7 @@ namespace RadiologyReportCopilot
                         window.devicePixelRatio);
                 })()");
                 int contentHeight;
-                if (IsDisposed || !int.TryParse(result, out contentHeight)) return;
+                if (IsDisposed || hasSavedWindowSize || !int.TryParse(result, out contentHeight)) return;
                 Rectangle available = Screen.FromControl(this).WorkingArea;
                 int frameHeight = Height - ClientSize.Height;
                 MinimumSize = new Size(Math.Min(720, available.Width), Math.Min(600, available.Height));

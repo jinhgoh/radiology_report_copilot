@@ -25,6 +25,7 @@ tmp/
 *.tmp
 
 # Local configuration and report exports.
+.window-size
 .env
 .env.*
 !.env.example

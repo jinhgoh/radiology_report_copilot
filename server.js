@@ -2,7 +2,7 @@
 const http = require('node:http');
 const fs = require('node:fs');
 const path = require('node:path');
-const files = new Set(['index.html', 'style.css', 'app.js', 'desktop-controls.js', 'core.js', 'evaluations.js', 'reference-data.js', 'RadiologyReportCopilot.ico']);
+const files = new Set(['index.html', 'style.css', 'app.js', 'desktop-controls.js', 'core.js', 'evaluations.js', 'reference-data.js', 'assets/RadiologyReportCopilot.ico']);
 const mime = { '.html': 'text/html', '.css': 'text/css', '.js': 'text/javascript', '.ico': 'image/x-icon' };
 const server = http.createServer((req, res) => {
   const name = new URL(req.url, 'http://localhost').pathname.slice(1) || 'index.html';

@@ -82,7 +82,7 @@ The report editor uses HTML, CSS, and JavaScript without external JavaScript dep
 | `build.bat` | Compiles the Windows desktop executable |
 | `DesktopApp.cs` | Native app window, embedded WebView2 browser, and TXT save dialog |
 | `app.manifest` | Windows compatibility and DPI awareness |
-| `RadiologyReportCopilot.ico` | Radiology icon embedded in the executable and used as the favicon |
+| `assets/RadiologyReportCopilot.ico` | Radiology icon embedded in the executable and used as the favicon |
 | `assets/app-icon.png` | Original generated icon artwork; provenance and prompt in `assets/README.md` |
 | `Microsoft.Web.WebView2.*.dll`, `WebView2Loader.dll` | WebView2 SDK dependencies; keep beside the executable |
 | `tests/` | Core logic and finding-insertion tests |

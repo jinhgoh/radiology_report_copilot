@@ -25,7 +25,7 @@ try {
     }
 } finally { $source.Dispose() }
 
-$outputPath = Join-Path $appRoot 'RadiologyReportCopilot.ico'
+$outputPath = Join-Path $appRoot 'assets/RadiologyReportCopilot.ico'
 $writer = New-Object System.IO.BinaryWriter([System.IO.File]::Create($outputPath))
 try {
     $writer.Write([uint16]0)

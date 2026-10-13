@@ -1,6 +1,6 @@
 # App icon
 
-`app-icon.png` was created with the built-in image generation tool. It depicts a stylized X-ray ribcage and mint heart on a deep teal tile. `scripts/build-icon.ps1` packages the artwork into `RadiologyReportCopilot.ico` at 16, 20, 24, 32, 40, 48, 64, 128, and 256 pixels.
+`app-icon.png` was created with the built-in image generation tool. It depicts a stylized X-ray ribcage and mint heart on a deep teal tile. `scripts/build-icon.ps1` packages the artwork into `assets/RadiologyReportCopilot.ico` at 16, 20, 24, 32, 40, 48, 64, 128, and 256 pixels.
 
 Generation prompt:
 
